@@ -4,16 +4,29 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000
 
 type CheckState = 'idle' | 'loading' | 'online' | 'offline'
 
+interface Category {
+  id: number
+  name: string
+}
+
 function App() {
   const [state, setState] = useState<CheckState>('idle')
+  const [categories, setCategories] = useState<Category[]>([])
 
   const checkSystem = async () => {
     setState('loading')
     try {
-      const res = await fetch(`${API_BASE_URL}/api/health`)
-      if (!res.ok) throw new Error('Health check failed')
-      const data = await res.json()
-      if (data.status !== 'ok') throw new Error('Unexpected health response')
+      const [healthRes, categoriesRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/health`),
+        fetch(`${API_BASE_URL}/api/categories`),
+      ])
+      if (!healthRes.ok || !categoriesRes.ok) throw new Error('Request failed')
+
+      const health = await healthRes.json()
+      if (health.status !== 'ok') throw new Error('Unexpected health response')
+
+      const categoriesData: Category[] = await categoriesRes.json()
+      setCategories(categoriesData)
       setState('online')
     } catch {
       setState('offline')
@@ -33,6 +46,12 @@ function App() {
       {state === 'online' && (
         <div>
           <p>System Status: Online</p>
+          <p>Supported Request Categories:</p>
+          <ul>
+            {categories.map((category) => (
+              <li key={category.id}>{category.name}</li>
+            ))}
+          </ul>
         </div>
       )}
 
