@@ -57,7 +57,8 @@ Prerequisites: Node.js 20+, PostgreSQL running locally with a `toktickit` databa
 cd server
 npm install
 cp .env.example .env   # edit DATABASE_URL if your local Postgres differs
-npx prisma db pull     # confirms the database is reachable
+npx prisma migrate dev  # creates the Category table
+npm run seed             # inserts the four IT request categories (safe to re-run)
 npm run dev             # starts the API on http://localhost:4000
 ```
 
