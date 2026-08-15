@@ -4,19 +4,18 @@ Required automated tests per the Lab 1 labsheet (section 11). Status is updated 
 Issue lands.
 
 | Test File (tests/lab-01/) | Tool      | Test Description                                    | Status  |
-|----------------------------|-----------|------------------------------------------------------|---------|
-| API-01                      | Supertest | Health endpoint returns 200 and expected JSON         | Planned - Issue 2 |
-| API-02                      | Supertest | Categories endpoint returns the four seeded categories | Planned - Issue 4 |
-| UI-01                       | Vitest    | TokTickIT heading renders                             | Planned - Issue 2 |
-| UI-02                       | Vitest    | Loading state changes to category list                | Planned - Issue 4 |
-| UI-03                       | Vitest    | API failure displays a useful error message            | Planned - Issue 2 |
+|----------------------------|-----------|--------------------------------------------------------|---------|
+| API-01                      | Supertest | Health endpoint returns 200 and expected JSON           | Implemented - server/tests/lab-01/health.test.ts |
+| API-02                      | Supertest | Categories endpoint returns the four seeded categories  | Planned - Issue 4 |
+| UI-01                       | Vitest    | TokTickIT heading renders                               | Implemented - client/tests/lab-01/App.test.tsx |
+| UI-02                       | Vitest    | Loading state changes to category list                  | Planned - Issue 4 |
+| UI-03                       | Vitest    | API failure displays a useful error message              | Implemented - client/tests/lab-01/App.test.tsx |
 
-## Foundation smoke tests (Issue 1)
+## Foundation smoke test (Issue 1)
 
-Not part of the required IDs above - these only prove the test tooling itself is wired up
-correctly before any real feature tests exist.
+Not part of the required IDs above - only proves the Supertest tooling itself is wired up
+correctly, independent of any real endpoint.
 
 | File                                       | Tool      | Description                                    |
-|---------------------------------------------|-----------|-------------------------------------------------|
+|---------------------------------------------|-----------|---------------------------------------------------|
 | server/tests/lab-01/app.smoke.test.ts        | Supertest | Express app responds 404 to an undefined route  |
-| client/tests/lab-01/App.smoke.test.tsx       | Vitest    | `<App />` renders without crashing               |
