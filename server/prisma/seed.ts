@@ -1,4 +1,3 @@
-import 'dotenv/config'
 import { prisma } from '../src/prisma'
 
 const CATEGORIES = ['Account and Access', 'Hardware', 'Software', 'Network']
