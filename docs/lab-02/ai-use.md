@@ -9,6 +9,7 @@ I reviewed and adjusted the assumptions before any Issue work began.
 | Prompt Name | Actual Prompt Text | My Reflection |
 |---|---|---|
 | Draft the sprint contract | Uploaded the Lab 2 labsheet and the GitHub Workflow Guide, asked: "ช่วยเพิ่มเนื้อหาภายใน file และแบ่งเป็นแต่ละ issue ตามความเหมาะสม" (add content to the spec files and split the sprint into Issues appropriately) | Needed the labsheet's own required sections (FR/BR/AC/data model/API) as scaffolding — without that structure the draft would have been much vaguer. |
+| Implement Development Requester Context | "ทำต่อเลย" (just continue), after confirming PR #17 merged | Straightforward once specification.md/api-spec.md already had the RequesterUser model and endpoint contract decided — the agent mostly executed a plan that was already written down, rather than inventing one on the spot. |
 | (to be extended) | | |
 
 ## Reflection
