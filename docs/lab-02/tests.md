@@ -14,10 +14,10 @@ one automated test; no test is written without a traceable requirement behind it
 | API-01 | API | AC-01 | Create a valid Ticket | 201; Ticket saved; unique Ticket Number returned | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
 | API-02 | API | AC-04 | Create Ticket missing Summary | 400 with field-level error; no Ticket saved | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
 | API-03 | API | AC-05 | Create Ticket with too-short Description | 400 with field-level error | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
-| API-04 | API | AC-12, BR-05 | List Tickets scoped to requester | Only the calling Requester's Tickets returned | `server/tests/lab-02/my-tickets.api.test.ts` | Planned |
-| API-05 | API | BR-25 | Search by keyword | Only matching Ticket Number/Summary rows returned | `server/tests/lab-02/my-tickets.api.test.ts` | Planned |
-| API-06 | API | AC-16 | Paginate ticket list | Correct page slice + pagination metadata | `server/tests/lab-02/my-tickets.api.test.ts` | Planned |
-| API-07 | API | BR-23, BR-24 | Invalid page/sort params | Falls back to defaults instead of erroring | `server/tests/lab-02/my-tickets.api.test.ts` | Planned |
+| API-04 | API | AC-12, BR-05 | List Tickets scoped to requester | Only the calling Requester's Tickets returned | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
+| API-05 | API | BR-25 | Search by keyword | Only matching Ticket Number/Summary rows returned | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
+| API-06 | API | AC-16 | Paginate ticket list | Correct page slice + pagination metadata | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
+| API-07 | API | BR-23, BR-24 | Invalid page/sort params | Falls back to defaults instead of erroring | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
 | API-08 | API | AC-17 | Get owned Ticket detail | 200 with full Ticket + attachments | `server/tests/lab-02/ticket-detail.api.test.ts` | Planned |
 | API-09 | API | AC-03, AC-18 | Get another Requester's Ticket | 404, no data exposed | `server/tests/lab-02/ticket-detail.api.test.ts` | Planned |
 | API-10 | API | AC-08 | Upload valid attachment (JPG <5MB) | 201, Attachment recorded | `server/tests/lab-02/attachments.api.test.ts` | Planned |
@@ -31,9 +31,9 @@ one automated test; no test is written without a traceable requirement behind it
 | UI-03 | UI | AC-06 | Submit valid form | Submit button shows busy state and is disabled | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
 | UI-04 | UI | AC-07 | Backend unavailable on submit | Safe error shown; entered values preserved | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
 | UI-05 | UI | AC-09, AC-10 | Select invalid attachment (size/type) | Client-side rejection message; no upload call | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
-| UI-06 | UI | AC-14 | My Tickets with zero Tickets | Empty state shown, distinct CTA | `MyTickets.test.tsx` | Planned |
-| UI-07 | UI | AC-15 | Search/filter yields no matches | No-results state shown, distinct from empty | `MyTickets.test.tsx` | Planned |
-| UI-08 | UI | AC-13 | Change Requester while on My Tickets | List reloads to the new Requester's Tickets only | `MyTickets.test.tsx` | Planned |
+| UI-06 | UI | AC-14 | My Tickets with zero Tickets | Empty state shown, distinct CTA | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
+| UI-07 | UI | AC-15 | Search/filter yields no matches | No-results state shown, distinct from empty | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
+| UI-08 | UI | AC-13 | Change Requester while on My Tickets | List reloads to the new Requester's Tickets only | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
 | UI-09 | UI | AC-17 | Ticket Detail header rendering | All header fields rendered read-only (non-editable) | `RequesterTicketDetail.test.tsx` | Planned |
 | UI-10 | UI | AC-20 | Removed attachment rendering | Shown muted with reason; Download disabled | `RequesterTicketDetail.test.tsx` | Planned |
 | UI-11 | UI | BR-21 | Remove-attachment confirm flow | Confirm stays disabled until a reason is entered | `AttachmentSection.test.tsx` | Planned |
