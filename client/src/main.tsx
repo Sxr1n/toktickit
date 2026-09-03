@@ -8,6 +8,7 @@ import AppShell from './components/AppShell.tsx'
 import RequireRequester from './components/RequireRequester.tsx'
 import { RequesterProvider } from './context/RequesterContext.tsx'
 import CreateTicket from './pages/CreateTicket.tsx'
+import MyTickets from './pages/MyTickets.tsx'
 import RequesterSelection from './pages/RequesterSelection.tsx'
 
 createRoot(document.getElementById('root')!).render(
@@ -23,6 +24,14 @@ createRoot(document.getElementById('root')!).render(
               element={
                 <RequireRequester>
                   <CreateTicket />
+                </RequireRequester>
+              }
+            />
+            <Route
+              path="/tickets"
+              element={
+                <RequireRequester>
+                  <MyTickets />
                 </RequireRequester>
               }
             />

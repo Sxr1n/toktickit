@@ -1,3 +1,4 @@
+import type { Prisma } from '../../generated/prisma/client'
 import { Router } from 'express'
 import { prisma } from '../prisma'
 import { requireRequester } from '../middleware/requireRequester'
@@ -5,6 +6,73 @@ import { requireRequester } from '../middleware/requireRequester'
 const router = Router()
 
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'] as const
+const SORT_FIELDS = ['createdAt', 'currentStatus'] as const
+const DEFAULT_PAGE_SIZE = 10
+const MAX_PAGE_SIZE = 50
+
+router.get('/tickets', requireRequester, async (req, res) => {
+  const q = req.query
+
+  const page = Math.max(1, Number.parseInt(String(q.page ?? '1'), 10) || 1)
+  const rawPageSize = Number.parseInt(String(q.pageSize ?? DEFAULT_PAGE_SIZE), 10)
+  const pageSize =
+    Number.isInteger(rawPageSize) && rawPageSize >= 1 && rawPageSize <= MAX_PAGE_SIZE
+      ? rawPageSize
+      : DEFAULT_PAGE_SIZE
+
+  const sortBy = SORT_FIELDS.includes(q.sortBy as never) ? (q.sortBy as 'createdAt' | 'currentStatus') : 'createdAt'
+  const sortDir = q.sortDir === 'asc' ? 'asc' : 'desc'
+
+  const where: Prisma.TicketWhereInput = { requesterId: req.requesterId }
+
+  if (typeof q.search === 'string' && q.search.trim() !== '') {
+    where.OR = [
+      { ticketNumber: { contains: q.search, mode: 'insensitive' } },
+      { summary: { contains: q.search, mode: 'insensitive' } },
+    ]
+  }
+  if (typeof q.categoryId === 'string' && Number.isInteger(Number(q.categoryId))) {
+    where.categoryId = Number(q.categoryId)
+  }
+  if (typeof q.relatedSystemId === 'string' && Number.isInteger(Number(q.relatedSystemId))) {
+    where.relatedSystemId = Number(q.relatedSystemId)
+  }
+  if (typeof q.requestedPriority === 'string' && PRIORITIES.includes(q.requestedPriority as never)) {
+    where.requestedPriority = q.requestedPriority as (typeof PRIORITIES)[number]
+  }
+
+  try {
+    const [items, totalItems] = await Promise.all([
+      prisma.ticket.findMany({
+        where,
+        orderBy: [{ [sortBy]: sortDir }, { id: 'desc' }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          id: true,
+          ticketNumber: true,
+          summary: true,
+          categoryId: true,
+          relatedSystemId: true,
+          requestedPriority: true,
+          currentStatus: true,
+          createdAt: true,
+        },
+      }),
+      prisma.ticket.count({ where }),
+    ])
+
+    res.json({
+      items,
+      page,
+      pageSize,
+      totalItems,
+      totalPages: Math.max(1, Math.ceil(totalItems / pageSize)),
+    })
+  } catch {
+    res.status(500).json({ error: 'Unable to load Tickets' })
+  }
+})
 
 function validateCreateTicket(body: unknown) {
   const fields: Record<string, string> = {}
