@@ -2,6 +2,16 @@ import { prisma } from '../src/prisma'
 
 const CATEGORIES = ['Account and Access', 'Hardware', 'Software', 'Network']
 
+const RELATED_SYSTEMS = [
+  'Email',
+  'Campus Wi-Fi',
+  'VPN',
+  'LEB2 App',
+  'Grade Submission App',
+  'Printer',
+  'Corporate Laptop',
+]
+
 const REQUESTERS: { name: string; email: string; isActive: boolean }[] = [
   { name: 'Jennifer Anderson', email: 'jennifer.anderson@example.com', isActive: true },
   { name: 'Michael Brown', email: 'michael.brown@example.com', isActive: true },
@@ -13,6 +23,14 @@ const REQUESTERS: { name: string; email: string; isActive: boolean }[] = [
 async function main() {
   for (const name of CATEGORIES) {
     await prisma.category.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+    })
+  }
+
+  for (const name of RELATED_SYSTEMS) {
+    await prisma.relatedSystem.upsert({
       where: { name },
       update: {},
       create: { name },
