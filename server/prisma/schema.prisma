@@ -61,7 +61,24 @@ model Ticket {
   currentStatus     TicketStatus  @default(NEW)
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
+  attachments       Attachment[]
 
   @@index([requesterId])
   @@index([categoryId])
+}
+
+model Attachment {
+  id            Int       @id @default(autoincrement())
+  ticketId      Int
+  ticket        Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  originalName  String
+  storedName    String
+  mimeType      String
+  sizeBytes     Int
+  uploadedAt    DateTime  @default(now())
+  isRemoved     Boolean   @default(false)
+  removedAt     DateTime?
+  removedReason String?
+
+  @@index([ticketId])
 }

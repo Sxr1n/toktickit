@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
-const MAX_SIZE_BYTES = 5 * 1024 * 1024
-const MAX_FILES = 5
+export const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+export const MAX_SIZE_BYTES = 5 * 1024 * 1024
+export const MAX_FILES = 5
 
 interface Props {
   files: File[]

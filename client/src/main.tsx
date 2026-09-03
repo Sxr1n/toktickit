@@ -10,6 +10,7 @@ import { RequesterProvider } from './context/RequesterContext.tsx'
 import CreateTicket from './pages/CreateTicket.tsx'
 import MyTickets from './pages/MyTickets.tsx'
 import RequesterSelection from './pages/RequesterSelection.tsx'
+import RequesterTicketDetail from './pages/RequesterTicketDetail.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -32,6 +33,14 @@ createRoot(document.getElementById('root')!).render(
               element={
                 <RequireRequester>
                   <MyTickets />
+                </RequireRequester>
+              }
+            />
+            <Route
+              path="/tickets/:id"
+              element={
+                <RequireRequester>
+                  <RequesterTicketDetail />
                 </RequireRequester>
               }
             />

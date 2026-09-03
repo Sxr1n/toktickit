@@ -18,14 +18,14 @@ one automated test; no test is written without a traceable requirement behind it
 | API-05 | API | BR-25 | Search by keyword | Only matching Ticket Number/Summary rows returned | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
 | API-06 | API | AC-16 | Paginate ticket list | Correct page slice + pagination metadata | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
 | API-07 | API | BR-23, BR-24 | Invalid page/sort params | Falls back to defaults instead of erroring | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
-| API-08 | API | AC-17 | Get owned Ticket detail | 200 with full Ticket + attachments | `server/tests/lab-02/ticket-detail.api.test.ts` | Planned |
-| API-09 | API | AC-03, AC-18 | Get another Requester's Ticket | 404, no data exposed | `server/tests/lab-02/ticket-detail.api.test.ts` | Planned |
-| API-10 | API | AC-08 | Upload valid attachment (JPG <5MB) | 201, Attachment recorded | `server/tests/lab-02/attachments.api.test.ts` | Planned |
-| API-11 | API | AC-09 | Upload 6MB file | 400 `FILE_TOO_LARGE`, nothing stored | `server/tests/lab-02/attachments.api.test.ts` | Planned |
-| API-12 | API | AC-10 | Upload unsupported type | 400 `UNSUPPORTED_TYPE`, nothing stored | `server/tests/lab-02/attachments.api.test.ts` | Planned |
-| API-13 | API | AC-11 | Upload 6th active attachment | 400 `ATTACHMENT_LIMIT_REACHED` | `server/tests/lab-02/attachments.api.test.ts` | Planned |
-| API-14 | API | AC-20 | Soft-remove an attachment with reason | 200, `isRemoved=true`, reason stored, file retained | `server/tests/lab-02/attachments.api.test.ts` | Planned |
-| API-15 | API | AC-21 | Download a removed attachment | 404, download blocked | `server/tests/lab-02/attachments.api.test.ts` | Planned |
+| API-08 | API | AC-17 | Get owned Ticket detail | 200 with full Ticket + attachments | `server/tests/lab-02/ticket-detail.api.test.ts` | Pass |
+| API-09 | API | AC-03, AC-18 | Get another Requester's Ticket | 404, no data exposed | `server/tests/lab-02/ticket-detail.api.test.ts` | Pass |
+| API-10 | API | AC-08 | Upload valid attachment (JPG <5MB) | 201, Attachment recorded | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-11 | API | AC-09 | Upload 6MB file | 400 `FILE_TOO_LARGE`, nothing stored | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-12 | API | AC-10 | Upload unsupported type | 400 `UNSUPPORTED_TYPE`, nothing stored | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-13 | API | AC-11 | Upload 6th active attachment | 400 `ATTACHMENT_LIMIT_REACHED` | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-14 | API | AC-20 | Soft-remove an attachment with reason | 200, `isRemoved=true`, reason stored, file retained | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-15 | API | AC-21 | Download a removed attachment | 404, download blocked | `server/tests/lab-02/attachments.api.test.ts` | Pass |
 | UI-01 | UI | — | Create Ticket renders all required fields | Category, Related System, Summary, Description, Priority, Attachments present | `client/tests/lab-02/CreateTicket.test.tsx` | Covered incidentally by UI-02/04/05 (all query these fields) |
 | UI-02 | UI | AC-04 | Submit without Summary | Field-level message shown; API not called | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
 | UI-03 | UI | AC-06 | Submit valid form | Submit button shows busy state and is disabled | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
@@ -34,9 +34,9 @@ one automated test; no test is written without a traceable requirement behind it
 | UI-06 | UI | AC-14 | My Tickets with zero Tickets | Empty state shown, distinct CTA | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
 | UI-07 | UI | AC-15 | Search/filter yields no matches | No-results state shown, distinct from empty | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
 | UI-08 | UI | AC-13 | Change Requester while on My Tickets | List reloads to the new Requester's Tickets only | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
-| UI-09 | UI | AC-17 | Ticket Detail header rendering | All header fields rendered read-only (non-editable) | `RequesterTicketDetail.test.tsx` | Planned |
-| UI-10 | UI | AC-20 | Removed attachment rendering | Shown muted with reason; Download disabled | `RequesterTicketDetail.test.tsx` | Planned |
-| UI-11 | UI | BR-21 | Remove-attachment confirm flow | Confirm stays disabled until a reason is entered | `AttachmentSection.test.tsx` | Planned |
+| UI-09 | UI | AC-17 | Ticket Detail header rendering | All header fields rendered read-only (non-editable) | `client/tests/lab-02/RequesterTicketDetail.test.tsx` | Pass |
+| UI-10 | UI | AC-20 | Removed attachment rendering | Shown muted with reason; Download disabled | `client/tests/lab-02/RequesterTicketDetail.test.tsx` | Pass |
+| UI-11 | UI | BR-21 | Remove-attachment confirm flow | Confirm stays disabled until a reason is entered | `client/tests/lab-02/RequesterTicketDetail.test.tsx` | Pass |
 | UI-12 | UI | AC-22, AC-23 | Requester Selection empty/error | Empty state disables Continue; failure shows safe error | `client/tests/lab-02/RequesterSelection.test.tsx` | Pass |
 | API-16 | API | BR-06 | List Development Requesters | Only active Requesters returned, inactive excluded | `server/tests/lab-02/dev-requesters.api.test.ts` | Pass |
 | E2E-01 | E2E | AC-01, AC-19, AC-20 | Full flow: select Requester → create Ticket → find in My Tickets → open Detail → add + remove Attachment | Each step succeeds; final state matches | `e2e/lab-02/requester-ticket-flow.spec.ts` | Planned |
@@ -97,3 +97,7 @@ To be filled in once each Issue lands — not reconstructed after the fact. Upda
   creation.
 - Playwright/E2E setup itself is scoped to the "Visual QA, responsive & E2E" Issue, not the earlier
   feature Issues — those land with their own API/UI tests first.
+- `server/vitest.config.ts` sets `fileParallelism: false`: the API tests are real integration tests
+  against one shared PostgreSQL database rather than a mock, so test files must run one at a time or
+  fixture setup/teardown in one file can race with another (this surfaced as a real flaky failure while
+  building Issue #14 and was fixed at the config level, not by patching individual tests).
