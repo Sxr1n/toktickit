@@ -37,7 +37,8 @@ one automated test; no test is written without a traceable requirement behind it
 | UI-09 | UI | AC-17 | Ticket Detail header rendering | All header fields rendered read-only (non-editable) | `RequesterTicketDetail.test.tsx` | Planned |
 | UI-10 | UI | AC-20 | Removed attachment rendering | Shown muted with reason; Download disabled | `RequesterTicketDetail.test.tsx` | Planned |
 | UI-11 | UI | BR-21 | Remove-attachment confirm flow | Confirm stays disabled until a reason is entered | `AttachmentSection.test.tsx` | Planned |
-| UI-12 | UI | AC-22, AC-23 | Requester Selection empty/error | Empty state disables Continue; failure shows safe error | `CreateTicket.test.tsx` (selection flow) | Planned |
+| UI-12 | UI | AC-22, AC-23 | Requester Selection empty/error | Empty state disables Continue; failure shows safe error | `client/tests/lab-02/RequesterSelection.test.tsx` | Pass |
+| API-16 | API | BR-06 | List Development Requesters | Only active Requesters returned, inactive excluded | `server/tests/lab-02/dev-requesters.api.test.ts` | Pass |
 | E2E-01 | E2E | AC-01, AC-19, AC-20 | Full flow: select Requester → create Ticket → find in My Tickets → open Detail → add + remove Attachment | Each step succeeds; final state matches | `e2e/lab-02/requester-ticket-flow.spec.ts` | Planned |
 | E2E-02 | E2E | AC-12, AC-13 | Switch Requester mid-session | Requester A's Ticket no longer visible after switching to B | `e2e/lab-02/requester-ticket-flow.spec.ts` | Planned |
 
