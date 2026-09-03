@@ -15,6 +15,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <div className="d-flex align-items-center gap-3 ms-auto">
             {selectedRequester ? (
               <>
+                <Link className="nav-link text-white" to="/create-ticket">
+                  Create Ticket
+                </Link>
                 <span className="text-white">{selectedRequester.name}</span>
                 <button type="button" className="btn btn-outline-light btn-sm" onClick={changeRequester}>
                   Change Requester

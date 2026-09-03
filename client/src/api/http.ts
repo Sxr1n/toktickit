@@ -12,3 +12,32 @@ export async function apiGet<T>(path: string, requesterId?: number): Promise<T> 
   }
   return res.json() as Promise<T>
 }
+
+export class ApiValidationError extends Error {
+  fields: Record<string, string>
+
+  constructor(fields: Record<string, string>) {
+    super('Validation failed')
+    this.fields = fields
+  }
+}
+
+export async function apiPost<T>(path: string, body: unknown, requesterId: number): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Dev-Requester-Id': String(requesterId),
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (res.status === 400) {
+    const data = await res.json()
+    throw new ApiValidationError(data.fields ?? {})
+  }
+  if (!res.ok) {
+    throw new Error(`Request to ${path} failed with status ${res.status}`)
+  }
+  return res.json() as Promise<T>
+}
