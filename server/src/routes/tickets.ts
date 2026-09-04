@@ -74,6 +74,37 @@ router.get('/tickets', requireRequester, async (req, res) => {
   }
 })
 
+router.get('/tickets/:id', requireRequester, async (req, res) => {
+  const id = Number(req.params.id)
+  if (!Number.isInteger(id)) {
+    return res.status(404).json({ error: 'NOT_FOUND' })
+  }
+
+  const ticket = await prisma.ticket.findFirst({
+    where: { id, requesterId: req.requesterId },
+    include: {
+      attachments: {
+        select: {
+          id: true,
+          originalName: true,
+          mimeType: true,
+          sizeBytes: true,
+          uploadedAt: true,
+          isRemoved: true,
+          removedReason: true,
+        },
+        orderBy: { id: 'asc' },
+      },
+    },
+  })
+
+  if (!ticket) {
+    return res.status(404).json({ error: 'NOT_FOUND' })
+  }
+
+  res.json(ticket)
+})
+
 function validateCreateTicket(body: unknown) {
   const fields: Record<string, string> = {}
   const b = (body ?? {}) as Record<string, unknown>
