@@ -108,12 +108,14 @@
 
 ## Visual inspection checklist (per screenshot batch)
 
-- [ ] No clipped labels or truncated buttons at any of the three viewport widths
-- [ ] No overlapping validation messages or badges
-- [ ] No unintended horizontal scrolling on any screen
-- [ ] Editable vs read-only fields are visually distinguishable at a glance
-- [ ] Badge colors match the table above and are never the sole indicator of meaning
-- [ ] Screenshots match `artifacts/lab-02/screenshots/{create-ticket,my-tickets,ticket-detail}/`
+- [x] No clipped labels or truncated buttons at any of the three viewport widths — caught and fixed a
+      real clip (mobile nav bar overflowing) via `e2e/lab-02/visual-checklist.spec.ts`; see
+      `tests.md` §4
+- [x] No overlapping validation messages or badges
+- [x] No unintended horizontal scrolling on any screen
+- [x] Editable vs read-only fields are visually distinguishable at a glance
+- [x] Badge colors match the table above and are never the sole indicator of meaning
+- [x] Screenshots match `artifacts/lab-02/screenshots/{create-ticket,my-tickets,ticket-detail}/`
 
 ## Screenshot paths
 

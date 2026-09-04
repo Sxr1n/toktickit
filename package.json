@@ -1,0 +1,19 @@
+{
+  "name": "toktickit",
+  "version": "1.0.0",
+  "description": "TokTickIT E2E test suite (Playwright) — client/ and server/ are separate npm projects.",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:report": "playwright show-report"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sxr1n/toktickit.git"
+  },
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
+  }
+}

@@ -13,9 +13,15 @@ I reviewed and adjusted the assumptions before any Issue work began.
 | Implement Create Ticket | "มีคน review/merge แล้วครับ" (someone reviewed/merged), after PR #18 merged | Caught its own test bug: a jsdom `userEvent.upload` quirk where the `accept` attribute silently filtered out the "wrong file type" test case before it ever reached the component. Diagnosed it, removed the (non-security-relevant) `accept` attribute, and re-verified rather than leaving a flaky/skipped test. |
 | Implement My Tickets | "มี review/merge แล้วครับ" (there's a review/merge), after PR #19 merged | Hit and fixed another test-environment gap on its own: jsdom doesn't apply the CSS that hides the desktop table vs. mobile card layout, so both render at once and duplicate-match test queries. Switched the affected assertions to `findAllByText`/`queryAllByText` instead of relaxing the actual responsive markup. |
 | Implement Ticket Detail and Attachments | "มี review/merge แล้ว" (there's a review/merge), after PR #20 merged | Diagnosed a real intermittent test failure caused by Vitest running server test files in parallel against one shared Postgres database — a destructive `deleteMany` in one file's setup was racing another file's fixtures. Fixed it at the config level (`fileParallelism: false`) rather than papering over the symptom, then verified by re-running the suite twice to confirm it wasn't still flaky. Also ran a full real upload → download → soft-remove → blocked-download cycle against the live server via curl, not just the mocked unit tests. |
-| (to be extended) | | |
+| Implement Visual QA, responsive checks, and E2E | "ตรวจสอบว่ามีคน comment หรือยัง ถ้ามีแล้วทำต่อได้เลย" (check if anyone commented, if so continue), after PR #21 merged | Set up Playwright, then found three real bugs on the *first actual run* rather than trusting the code on paper: an invalid `test.skip()` call signature, a test selecting the placeholder `<option>` instead of a real one, and the mobile viewport project defaulting to WebKit (not installed). Fixed all three, then a fourth: running the finished spec caught a genuine responsive bug — the nav bar's `navbar-expand` (no breakpoint) never collapsed, clipping the "Change Requester" button off-screen on mobile. Fixed the component itself (not the test) and re-ran to confirm the screenshot was clean. |
 
 ## Reflection
 
-To be expanded as Issues 2-7 are implemented — this file should end up with 6-10 prompts total per the
-labsheet's requirement, not just the specification-drafting step.
+The pattern that held across every Issue: run the thing for real before calling it done. Every Issue in
+this sprint surfaced at least one bug that only showed up when tests actually executed — a `userEvent.upload`
+accept-attribute quirk, duplicate-DOM query matches, a database test race, and finally a real
+visual clipping bug that only Playwright driving an actual browser could have caught. Static review of the
+code would have missed all of them. The main lesson for prompting: asking the agent to "continue" after
+each merge worked well *because* the specification, API contract, and UI spec were written in full before
+any Issue started — there was rarely a need to stop and ask what to build next, only how to fix what broke
+when it was actually exercised.
