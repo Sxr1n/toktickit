@@ -91,6 +91,21 @@ describe('CreateTicket (UI-03)', () => {
   })
 })
 
+describe('CreateTicket - Create Another Ticket', () => {
+  it('returns to a fresh, empty form without needing to navigate away', async () => {
+    await renderWithSelectedRequester(mockFetch())
+    await fillValidForm()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Submit Ticket' }))
+    await screen.findByText('Ticket created')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Create Another Ticket' }))
+
+    expect(await screen.findByLabelText('Category')).toBeInTheDocument()
+    expect(screen.getByLabelText(/Summary/)).toHaveValue('')
+  })
+})
+
 describe('CreateTicket (UI-04)', () => {
   it('shows a safe error and preserves entered values when the backend is unavailable', async () => {
     const fetchMock = mockFetch({
