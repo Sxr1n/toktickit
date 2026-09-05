@@ -82,6 +82,11 @@ width it never collapsed and the "Change Requester" button clipped off the right
 Replaced with a proper `d-md-none` hamburger toggle; re-ran the spec and confirmed the fix in the
 regenerated screenshots.
 
+Per a PR #22 review comment (screenshots alone don't fail a test on overflow), the checklist now also
+asserts `document.documentElement.scrollWidth <= clientWidth` at every screen/viewport combination, so a
+future horizontal-overflow regression fails the suite automatically instead of relying on someone
+noticing it in an image.
+
 ## 5. Test Commands
 
 ```
@@ -92,8 +97,8 @@ npx playwright test        # E2E-* (from repo root; auto-starts client + server)
 
 ## 6. Final Results
 
-To be filled in once each Issue lands — not reconstructed after the fact. Update the Status column in
-§2 to `Pass` with real terminal output captured per Issue's PR.
+All rows in §2 are `Pass` on `lab2-staging` as of the release integration Issue: 19/19 server
+(Supertest), 17/17 client (Vitest), 5/5 E2E (Playwright, run 3x consecutively to confirm no flakiness).
 
 ## 7. Known Limitations or Deferred Tests
 
@@ -102,6 +107,11 @@ To be filled in once each Issue lands — not reconstructed after the fact. Upda
   creation.
 - Playwright/E2E setup itself is scoped to the "Visual QA, responsive & E2E" Issue, not the earlier
   feature Issues — those land with their own API/UI tests first.
+- During release-integration regression, a genuine (reproducible, not one-off) strict-mode failure
+  surfaced in E2E-01: `getByText('Jennifer Anderson')` transiently matched both the nav bar and the
+  still-mid-transition Requester Selection `<option>` text during client-side navigation. Fixed by
+  asserting `{ exact: true }` and by having the `selectRequester` test helper explicitly
+  `waitForURL('/')` before proceeding, rather than assuming the click alone completed the navigation.
 - `server/vitest.config.ts` sets `fileParallelism: false`: the API tests are real integration tests
   against one shared PostgreSQL database rather than a mock, so test files must run one at a time or
   fixture setup/teardown in one file can race with another (this surfaced as a real flaky failure while

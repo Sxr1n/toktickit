@@ -9,6 +9,7 @@ async function selectRequester(page: import('@playwright/test').Page, name: stri
   const value = await select.locator('option', { hasText: name }).getAttribute('value')
   await select.selectOption(value!)
   await page.getByRole('button', { name: 'Continue' }).click()
+  await page.waitForURL('/')
 }
 
 test.describe('E2E-01: full Requester ticket flow', () => {
@@ -18,7 +19,7 @@ test.describe('E2E-01: full Requester ticket flow', () => {
     const marker = `E2E ${Date.now()}`
 
     await selectRequester(page, 'Jennifer Anderson')
-    await expect(page.getByText('Jennifer Anderson')).toBeVisible()
+    await expect(page.getByText('Jennifer Anderson', { exact: true })).toBeVisible()
 
     await page.getByRole('link', { name: 'Create Ticket' }).click()
     await page.getByLabel('Category').selectOption({ index: 1 })
