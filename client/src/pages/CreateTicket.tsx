@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { apiGet, apiPost, ApiValidationError } from '../api/http'
 import AttachmentPicker from '../components/AttachmentPicker'
 import { useRequester } from '../context/RequesterContext'
@@ -101,6 +102,18 @@ export default function CreateTicket() {
     }
   }
 
+  const resetForm = () => {
+    setCategoryId('')
+    setRelatedSystemId('')
+    setSummary('')
+    setDescription('')
+    setRequestedPriority('')
+    setAttachments([])
+    setFieldErrors({})
+    setCreatedTicket(null)
+    setSubmitState('idle')
+  }
+
   if (submitState === 'success' && createdTicket) {
     return (
       <div className="container py-4" style={{ maxWidth: 640 }}>
@@ -109,6 +122,14 @@ export default function CreateTicket() {
           <p>
             Ticket Number: <strong>{createdTicket.ticketNumber}</strong>
           </p>
+          <div className="d-flex gap-2 mt-3">
+            <button type="button" className="btn btn-primary" onClick={resetForm}>
+              Create Another Ticket
+            </button>
+            <Link to="/tickets" className="btn btn-outline-secondary">
+              View My Tickets
+            </Link>
+          </div>
         </div>
       </div>
     )
