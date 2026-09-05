@@ -39,8 +39,8 @@ one automated test; no test is written without a traceable requirement behind it
 | UI-11 | UI | BR-21 | Remove-attachment confirm flow | Confirm stays disabled until a reason is entered | `client/tests/lab-02/RequesterTicketDetail.test.tsx` | Pass |
 | UI-12 | UI | AC-22, AC-23 | Requester Selection empty/error | Empty state disables Continue; failure shows safe error | `client/tests/lab-02/RequesterSelection.test.tsx` | Pass |
 | API-16 | API | BR-06 | List Development Requesters | Only active Requesters returned, inactive excluded | `server/tests/lab-02/dev-requesters.api.test.ts` | Pass |
-| E2E-01 | E2E | AC-01, AC-19, AC-20 | Full flow: select Requester → create Ticket → find in My Tickets → open Detail → add + remove Attachment | Each step succeeds; final state matches | `e2e/lab-02/requester-ticket-flow.spec.ts` | Planned |
-| E2E-02 | E2E | AC-12, AC-13 | Switch Requester mid-session | Requester A's Ticket no longer visible after switching to B | `e2e/lab-02/requester-ticket-flow.spec.ts` | Planned |
+| E2E-01 | E2E | AC-01, AC-19, AC-20 | Full flow: select Requester → create Ticket → find in My Tickets → open Detail → add + remove Attachment | Each step succeeds; final state matches | `e2e/lab-02/requester-ticket-flow.spec.ts` | Pass |
+| E2E-02 | E2E | AC-12, AC-13 | Switch Requester mid-session | Requester A's Ticket no longer visible after switching to B | `e2e/lab-02/requester-ticket-flow.spec.ts` | Pass |
 
 ## 3. Acceptance-Criterion Traceability
 
@@ -73,16 +73,21 @@ one automated test; no test is written without a traceable requirement behind it
 
 ## 4. Responsive and Visual Checklist
 
-See `ui-spec.md` §"Visual inspection checklist". Playwright captures screenshots at desktop (1280px),
-tablet (834px), and mobile (390px) for Create Ticket, My Tickets, and Ticket Detail into
-`artifacts/lab-02/screenshots/`, checked against that list before Lab 2 is marked done.
+See `ui-spec.md` §"Visual inspection checklist" for the completed checklist. Playwright
+(`e2e/lab-02/visual-checklist.spec.ts`) captures real screenshots at desktop (1280px), tablet (834px),
+and mobile (390px) for Create Ticket, My Tickets, and Ticket Detail into
+`artifacts/lab-02/screenshots/`. Running this spec against the actual app caught and fixed a real bug:
+the top nav bar used Bootstrap's always-expanded `navbar-expand` class (no breakpoint), so at mobile
+width it never collapsed and the "Change Requester" button clipped off the right edge of the screen.
+Replaced with a proper `d-md-none` hamburger toggle; re-ran the spec and confirmed the fix in the
+regenerated screenshots.
 
 ## 5. Test Commands
 
 ```
 cd server && npm test      # API-* (Supertest)
 cd client && npm test      # UI-* (Vitest + Testing Library)
-npx playwright test        # E2E-* (from repo root, once configured)
+npx playwright test        # E2E-* (from repo root; auto-starts client + server)
 ```
 
 ## 6. Final Results

@@ -4,3 +4,6 @@ dist/
 build/
 generated/
 uploads/
+test-results/
+playwright-report/
+blob-report/
