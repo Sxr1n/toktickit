@@ -2,10 +2,16 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { RequesterProvider } from '../../src/context/RequesterContext'
+import { AuthProvider } from '../../src/context/AuthContext'
 import RequesterTicketDetail from '../../src/pages/RequesterTicketDetail'
 
-const REQUESTERS = [{ id: 1, name: 'Jennifer Anderson', email: 'jennifer.anderson@example.com' }]
+const CURRENT_USER = {
+  id: 1,
+  name: 'Jennifer Anderson',
+  email: 'jennifer.anderson@example.com',
+  role: 'REQUESTER',
+  mustChangePassword: false,
+}
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status })
@@ -22,6 +28,8 @@ function baseTicket(overrides: Record<string, unknown> = {}) {
     requestedPriority: 'MEDIUM',
     currentStatus: 'NEW',
     createdAt: '2026-09-01T00:00:00.000Z',
+    updatedAt: '2026-09-01T00:00:00.000Z',
+    requesterConfirmedResolved: false,
     attachments: [],
     ...overrides,
   }
@@ -29,15 +37,14 @@ function baseTicket(overrides: Record<string, unknown> = {}) {
 
 function renderDetail(fetchImpl: (url: string, init?: RequestInit) => Promise<Response>) {
   vi.stubGlobal('fetch', vi.fn(fetchImpl))
-  localStorage.setItem('toktickit.selectedRequesterId', '1')
 
   return render(
     <MemoryRouter initialEntries={['/tickets/1']}>
-      <RequesterProvider>
+      <AuthProvider>
         <Routes>
           <Route path="/tickets/:id" element={<RequesterTicketDetail />} />
         </Routes>
-      </RequesterProvider>
+      </AuthProvider>
     </MemoryRouter>,
   )
 }
@@ -53,8 +60,9 @@ afterEach(() => {
 describe('RequesterTicketDetail (UI-09)', () => {
   it('renders the Ticket header fields as read-only text, not inputs', async () => {
     renderDetail(async (url) => {
-      if (url.endsWith('/api/dev-requesters')) return jsonResponse(REQUESTERS)
+      if (url.endsWith('/api/auth/me')) return jsonResponse(CURRENT_USER)
       if (url.endsWith('/api/tickets/1')) return jsonResponse(baseTicket())
+      if (url.endsWith('/api/tickets/1/public-comments')) return jsonResponse([])
       throw new Error(`Unexpected fetch to ${url}`)
     })
 
@@ -62,14 +70,15 @@ describe('RequesterTicketDetail (UI-09)', () => {
     expect(screen.getByText('Laptop battery drains quickly')).toBeInTheDocument()
     // No attachments yet, so the only possible inputs would be the header fields -
     // and those are rendered as plain read-only text, not form controls.
-    expect(screen.queryAllByRole('textbox')).toHaveLength(0)
+    expect(screen.queryAllByRole('textbox')).toHaveLength(1) // the new-comment textarea
   })
 })
 
 describe('RequesterTicketDetail (UI-10)', () => {
   it('shows a removed attachment muted with its reason and no download control', async () => {
     renderDetail(async (url) => {
-      if (url.endsWith('/api/dev-requesters')) return jsonResponse(REQUESTERS)
+      if (url.endsWith('/api/auth/me')) return jsonResponse(CURRENT_USER)
+      if (url.endsWith('/api/tickets/1/public-comments')) return jsonResponse([])
       if (url.endsWith('/api/tickets/1')) {
         return jsonResponse(
           baseTicket({
@@ -99,7 +108,8 @@ describe('RequesterTicketDetail (UI-10)', () => {
 describe('AttachmentSection remove flow (UI-11)', () => {
   it('keeps Confirm Removal disabled until a reason is entered', async () => {
     renderDetail(async (url) => {
-      if (url.endsWith('/api/dev-requesters')) return jsonResponse(REQUESTERS)
+      if (url.endsWith('/api/auth/me')) return jsonResponse(CURRENT_USER)
+      if (url.endsWith('/api/tickets/1/public-comments')) return jsonResponse([])
       if (url.endsWith('/api/tickets/1')) {
         return jsonResponse(
           baseTicket({

@@ -1,5 +1,34 @@
 import { expect, test } from '@playwright/test'
 
+// Every seeded Requester has mustChangePassword: true (BR-08); see requester-ticket-flow.spec.ts
+// for why login always detours through Change Password and restores the password afterward.
+const TEMP_PASSWORD = 'E2eTemp123!'
+
+async function loginAsRequester(page: import('@playwright/test').Page, email: string) {
+  await page.goto('/login')
+  await page.getByLabel('Email address').fill(email)
+  await page.getByLabel('Password').fill('DevPass123!')
+  await page.getByRole('button', { name: 'Sign In' }).click()
+
+  await page.waitForURL((url) => url.pathname === '/' || url.pathname === '/change-password')
+  if (new URL(page.url()).pathname === '/change-password') {
+    await page.getByLabel('Current (temporary) password').fill('DevPass123!')
+    await page.getByLabel('New password', { exact: true }).fill(TEMP_PASSWORD)
+    await page.getByLabel('Confirm new password').fill(TEMP_PASSWORD)
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await page.waitForURL('/')
+  }
+}
+
+async function restoreSeedPassword(page: import('@playwright/test').Page) {
+  await page
+    .request.post('http://localhost:4000/api/auth/change-password', {
+      data: { currentPassword: TEMP_PASSWORD, newPassword: 'DevPass123!' },
+      headers: { 'Content-Type': 'application/json' },
+    })
+    .catch(() => {})
+}
+
 async function clickNavLink(page: import('@playwright/test').Page, name: string) {
   const toggle = page.getByRole('button', { name: 'Toggle navigation menu' })
   if (await toggle.isVisible()) {
@@ -21,13 +50,15 @@ async function expectNoHorizontalOverflow(page: import('@playwright/test').Page,
   expect(scrollWidth, `${screen} has horizontal overflow`).toBeLessThanOrEqual(clientWidth)
 }
 
+test.afterEach(async ({ page }) => {
+  await restoreSeedPassword(page)
+})
+
 test('capture Create Ticket, My Tickets, and Ticket Detail screenshots', async ({ page }, testInfo) => {
   const viewport = testInfo.project.name
   const marker = `Visual ${Date.now()}`
 
-  await page.goto('/select-requester')
-  await page.getByLabel('Development Requester').selectOption({ index: 1 })
-  await page.getByRole('button', { name: 'Continue' }).click()
+  await loginAsRequester(page, 'david.lee@example.com')
 
   await clickNavLink(page, 'Create Ticket')
   await expect(page.getByRole('heading', { name: 'Create Ticket' })).toBeVisible()

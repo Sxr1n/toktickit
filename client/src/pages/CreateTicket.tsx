@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { apiGet, apiPost, ApiValidationError } from '../api/http'
 import AttachmentPicker from '../components/AttachmentPicker'
-import { useRequester } from '../context/RequesterContext'
+import { useAuth } from '../context/AuthContext'
 
 interface Category {
   id: number
@@ -23,7 +23,7 @@ interface Ticket {
 type SubmitState = 'idle' | 'submitting' | 'success' | 'error'
 
 export default function CreateTicket() {
-  const { selectedRequester } = useRequester()
+  const { user } = useAuth()
 
   const [categories, setCategories] = useState<Category[]>([])
   const [relatedSystems, setRelatedSystems] = useState<RelatedSystem[]>([])
@@ -71,7 +71,7 @@ export default function CreateTicket() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!selectedRequester) return
+    if (!user) return
 
     const errors = validate()
     setFieldErrors(errors)
@@ -79,17 +79,13 @@ export default function CreateTicket() {
 
     setSubmitState('submitting')
     try {
-      const ticket = await apiPost<Ticket>(
-        '/api/tickets',
-        {
-          categoryId: Number(categoryId),
-          relatedSystemId: Number(relatedSystemId),
-          summary: summary.trim(),
-          description: description.trim(),
-          requestedPriority,
-        },
-        selectedRequester.id,
-      )
+      const ticket = await apiPost<Ticket>('/api/tickets', {
+        categoryId: Number(categoryId),
+        relatedSystemId: Number(relatedSystemId),
+        summary: summary.trim(),
+        description: description.trim(),
+        requestedPriority,
+      })
       setCreatedTicket(ticket)
       setSubmitState('success')
     } catch (err) {

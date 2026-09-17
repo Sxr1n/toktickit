@@ -1,25 +1,52 @@
 import { expect, test } from '@playwright/test'
+import type { Page } from '@playwright/test'
 
 // Only the "desktop" project runs this file (see playwright.config.ts testMatch) - the
 // functional flow doesn't need to repeat once per viewport.
 
-async function selectRequester(page: import('@playwright/test').Page, name: string) {
-  await page.goto('/select-requester')
-  const select = page.getByLabel('Development Requester')
-  const value = await select.locator('option', { hasText: name }).getAttribute('value')
-  await select.selectOption(value!)
-  await page.getByRole('button', { name: 'Continue' }).click()
-  await page.waitForURL('/')
+// Every seeded Requester has mustChangePassword: true (BR-08), so a real login always detours
+// through Change Password first. TEMP_PASSWORD is a throwaway new password used only within a
+// single test; each test restores the account back to DevPass123! afterward so the seed's
+// documented state holds for the next run (mirrors e2e/lab-03/authentication.spec.ts's E2E-02).
+const TEMP_PASSWORD = 'E2eTemp123!'
+
+async function loginAsRequester(page: Page, email: string) {
+  await page.goto('/login')
+  await page.getByLabel('Email address').fill(email)
+  await page.getByLabel('Password').fill('DevPass123!')
+  await page.getByRole('button', { name: 'Sign In' }).click()
+
+  await page.waitForURL((url) => url.pathname === '/' || url.pathname === '/change-password')
+  if (new URL(page.url()).pathname === '/change-password') {
+    await page.getByLabel('Current (temporary) password').fill('DevPass123!')
+    await page.getByLabel('New password', { exact: true }).fill(TEMP_PASSWORD)
+    await page.getByLabel('Confirm new password').fill(TEMP_PASSWORD)
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await page.waitForURL('/')
+  }
+}
+
+async function restoreSeedPassword(page: Page) {
+  await page
+    .request.post('http://localhost:4000/api/auth/change-password', {
+      data: { currentPassword: TEMP_PASSWORD, newPassword: 'DevPass123!' },
+      headers: { 'Content-Type': 'application/json' },
+    })
+    .catch(() => {})
 }
 
 test.describe('E2E-01: full Requester ticket flow', () => {
-  test('select Requester, create a Ticket, find it in My Tickets, open Detail, add and remove an Attachment', async ({
+  test.afterEach(async ({ page }) => {
+    await restoreSeedPassword(page)
+  })
+
+  test('log in, create a Ticket, find it in My Tickets, open Detail, add and remove an Attachment', async ({
     page,
   }) => {
     const marker = `E2E ${Date.now()}`
 
-    await selectRequester(page, 'Jennifer Anderson')
-    await expect(page.getByText('Jennifer Anderson', { exact: true })).toBeVisible()
+    await loginAsRequester(page, 'michael.brown@example.com')
+    await expect(page.getByText('Michael Brown', { exact: false })).toBeVisible()
 
     await page.getByRole('link', { name: 'Create Ticket' }).click()
     await page.getByLabel('Category').selectOption({ index: 1 })
@@ -60,17 +87,26 @@ test.describe('E2E-01: full Requester ticket flow', () => {
   })
 })
 
-test.describe('E2E-02: switching Requester', () => {
-  test("Requester A's Ticket disappears from My Tickets after switching to Requester B", async ({ page }) => {
-    const marker = `E2E-switch ${Date.now()}`
+test.describe('E2E-02: Requester ownership isolation across real sessions', () => {
+  // Lab 2's fake "Change Requester" mid-session switch no longer exists under real auth -- the
+  // real-auth equivalent of "another Requester cannot see my Ticket" is two separate login
+  // sessions (log out, log in as someone else), not a same-session identity swap.
+  test.afterEach(async ({ page }) => {
+    await restoreSeedPassword(page)
+  })
 
-    await selectRequester(page, 'Sarah Wilson')
+  test("a different Requester's Ticket does not appear after logging out and logging in as someone else", async ({
+    page,
+  }) => {
+    const marker = `E2E-isolation ${Date.now()}`
+
+    await loginAsRequester(page, 'sarah.wilson@example.com')
     await page.getByRole('link', { name: 'Create Ticket' }).click()
     await page.getByLabel('Category').selectOption({ index: 1 })
     await page.getByLabel('Related System').selectOption({ index: 1 })
     await page.getByLabel('Requested Priority').selectOption('LOW')
     await page.getByLabel(/Summary/).fill(marker)
-    await page.getByLabel(/Description/).fill('Created to verify Requester-switch ownership isolation.')
+    await page.getByLabel(/Description/).fill('Created to verify Requester ownership isolation across sessions.')
     await page.getByRole('button', { name: 'Submit Ticket' }).click()
     await expect(page.getByText('Ticket created')).toBeVisible()
     const ticketNumber = await page.locator('strong').innerText()
@@ -79,9 +115,11 @@ test.describe('E2E-02: switching Requester', () => {
     await page.getByLabel('Search').fill(marker)
     await expect(page.locator('a:visible', { hasText: ticketNumber }).first()).toBeVisible()
 
-    await page.getByRole('button', { name: 'Change Requester' }).click()
-    await selectRequester(page, 'David Lee')
+    await restoreSeedPassword(page)
+    await page.getByRole('button', { name: 'Log out' }).click()
+    await page.waitForURL('/login')
 
+    await loginAsRequester(page, 'david.lee@example.com')
     await page.getByRole('navigation').getByRole('link', { name: 'My Tickets' }).click()
     await page.getByLabel('Search').fill(marker)
     await expect(page.getByText('No tickets match your search/filters.')).toBeVisible()

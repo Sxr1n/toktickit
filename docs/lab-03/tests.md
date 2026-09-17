@@ -84,11 +84,11 @@ Unit-level (`server/tests/lab-03/auth-lib.unit.test.ts`): password-rule validato
 
 | Test ID | AC / Requirement | What It Tests | Expected Result | Status |
 |---|---|---|---|---|
-| API-29 | AC-10, BR-24 | Post a valid Public Comment | 201, appears in a subsequent GET | Planned |
-| API-30 | BR-24 | Post empty/whitespace-only, or >2000 chars | 400 in both cases | Planned |
-| API-31 | BR-26 | Requester posts/reads Public Comments on another Requester's Ticket | 404 | Planned |
-| API-32 | AC-17, BR-04 | IT Staff posts an Internal Note; Requester's Public Comments fetch | Note visible to staff GET; absent from the Requester-facing endpoint entirely | Planned |
-| API-33 | BR-25 | Comment/Note author and timestamp | Both are server-set; a client-supplied `authorId`/`createdAt` in the body is ignored | Planned |
+| API-29 | AC-10, BR-24 | Post a valid Public Comment | 201, appears in a subsequent GET | Pass |
+| API-30 | BR-24 | Post empty/whitespace-only, or >2000 chars | 400 in both cases | Pass |
+| API-31 | BR-26 | Requester posts/reads Public Comments on another Requester's Ticket | 404 | Pass |
+| API-32 | AC-17, BR-04 | IT Staff posts an Internal Note; Requester's Public Comments fetch | Note visible to staff GET; absent from the Requester-facing endpoint entirely | Planned (Internal Notes and IT Staff routes land in Issue 30) |
+| API-33 | BR-25 | Comment/Note author and timestamp | Both are server-set; a client-supplied `authorId`/`createdAt` in the body is ignored | Pass (Public Comment half only; Internal Note half lands with API-32 in Issue 30) |
 
 ### 2.6 Administrator — `server/tests/lab-03/users-admin.api.test.ts`
 
@@ -120,7 +120,7 @@ Unit-level (`server/tests/lab-03/auth-lib.unit.test.ts`): password-rule validato
 | UI-04 | UI | AC-13 | Staff Queue renders multi-Requester rows, loading/empty/no-results/failure states | `client/tests/lab-03/StaffTicketQueue.test.tsx` | Planned |
 | UI-05 | UI | AC-14, AC-15 | Staff Ticket Detail: claim action, status-select narrowed to permitted transitions, Comments vs. Notes visually distinct containers | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Planned |
 | UI-06 | UI | AC-18, AC-20 | User Management: create/edit form validation, disabled self-deactivate/last-admin buttons with visible reason | `client/tests/lab-03/UserManagement.test.tsx` | Planned |
-| UI-07 | UI | AC-11 | Requester Ticket Detail: Problem Appears Resolved button becomes a confirmation chip, Current Status badge unchanged | `client/tests/lab-03/RequesterTicketDetail.test.tsx` | Planned |
+| UI-07 | UI | AC-11 | Requester Ticket Detail: Problem Appears Resolved button becomes a confirmation chip, Current Status badge unchanged | `client/tests/lab-03/RequesterTicketDetail.test.tsx` | Pass |
 
 ### 2.9 End-to-end — `e2e/lab-03/`
 
@@ -147,7 +147,7 @@ server-side invalidation is already covered directly by API-06.
 | AC-05 | API-02, UI-01 |
 | AC-06 | API-03 |
 | AC-07 | API-06 |
-| AC-08 | E2E-01 (server-side 401-with-no-session coverage for the Requester/Attachment routes already exists from Lab 2; API-11's broader sweep across the new staff/admin route families lands in Issue 28) |
+| AC-08 | E2E-01, plus server-side 401-with-no-session coverage for every Requester/Attachment/Public-Comment route (now cookie-based as of Issue 28); API-11's broader sweep across the new staff/admin route families lands as those route families ship in Issues 29-31 |
 | AC-09 | API-42, API-43 |
 | AC-10 | API-29 |
 | AC-11 | UI-07 |
@@ -203,6 +203,16 @@ Issue 27 (Authentication foundation): server 36/36 (19 Lab 1+2, 17 Lab 3 — 8 u
 24/24 (17 Lab 1+2, 7 Lab 3), E2E 5/5 (2 Lab 2, 1 Lab 2 visual, 2 Lab 3), all re-run to confirm no
 flakiness.
 
+Issue 28 (Requester regression + Public Comments): server 43/43 (27 Lab 1+2 — the 4 migrated Lab 2
+Requester/Attachment API suites now authenticate via real cookie login instead of the removed
+`X-Dev-Requester-Id` header, and the dev-only `/api/dev-requesters` test was deleted along with the
+route it covered — plus 16 Lab 3, 8 unit + 8 API), client 22/22 (Lab 1+2's `RequesterSelection.test.tsx`
+deleted along with the page; `CreateTicket`/`MyTickets`/`RequesterTicketDetail` tests now authenticate
+via `AuthProvider` + a mocked `/api/auth/me` instead of `RequesterProvider`; new
+`client/tests/lab-03/RequesterTicketDetail.test.tsx` covers UI-07). All re-run to confirm no flakiness.
+Manual verification: full Requester login → list → detail → Public Comment → Problem Appears Resolved
+→ logout flow exercised against real running dev servers (curl for the API, a live browser for the UI).
+
 ## 7. Known Limitations or Deferred Tests
 
 - Session-expiry (BR-11, API-07) is tested by issuing a token with a manually-set past expiry rather
@@ -218,3 +228,8 @@ flakiness.
   session; `server/tests/lab-03/auth.api.test.ts` itself no longer depends on this shared fixture
   (it uses its own dedicated throwaway user) precisely because of this discovered fragility.
 - Load/performance testing of the Staff Queue at large Ticket counts is out of scope for this course lab.
+- Lab 2's `MyTickets.test.tsx` previously had a test ("reloads the list to the newly selected Requester
+  after switching") that exercised the dev-only `RequesterContext.changeRequester()` escape hatch. That
+  mechanism no longer exists under real auth (switching identity now means logging out and back in as a
+  different account, a full page/state reset, not a same-session context switch), so the test was
+  removed rather than adapted — there is no real-auth equivalent scenario to translate it into.

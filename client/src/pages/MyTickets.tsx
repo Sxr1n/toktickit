@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiGet } from '../api/http'
-import { useRequester } from '../context/RequesterContext'
+import { useAuth } from '../context/AuthContext'
 
 interface Category {
   id: number
@@ -55,7 +55,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function MyTickets() {
-  const { selectedRequester } = useRequester()
+  const { user } = useAuth()
 
   const [categories, setCategories] = useState<Category[]>([])
   const [relatedSystems, setRelatedSystems] = useState<RelatedSystem[]>([])
@@ -81,7 +81,7 @@ export default function MyTickets() {
   }, [])
 
   const load = useCallback(() => {
-    if (!selectedRequester) return
+    if (!user) return
     setListState('loading')
 
     const params = new URLSearchParams()
@@ -93,13 +93,13 @@ export default function MyTickets() {
     params.set('sortDir', sortDir)
     params.set('page', String(page))
 
-    apiGet<TicketListResponse>(`/api/tickets?${params.toString()}`, selectedRequester.id)
+    apiGet<TicketListResponse>(`/api/tickets?${params.toString()}`)
       .then((data) => {
         setResult(data)
         setListState('loaded')
       })
       .catch(() => setListState('error'))
-  }, [selectedRequester, search, categoryId, relatedSystemId, priority, sortBy, sortDir, page])
+  }, [user, search, categoryId, relatedSystemId, priority, sortBy, sortDir, page])
 
   useEffect(() => {
     load()
@@ -107,7 +107,7 @@ export default function MyTickets() {
 
   useEffect(() => {
     setPage(1)
-  }, [search, categoryId, relatedSystemId, priority, sortBy, sortDir, selectedRequester?.id])
+  }, [search, categoryId, relatedSystemId, priority, sortBy, sortDir, user?.id])
 
   const categoryName = (id: number) => categories.find((c) => c.id === id)?.name ?? '-'
 

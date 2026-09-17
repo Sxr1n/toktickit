@@ -37,6 +37,7 @@ model User {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   tickets            Ticket[]
+  publicComments     PublicComment[]
 
   @@index([role])
 }
@@ -72,12 +73,26 @@ model Ticket {
   description       String
   requestedPriority Priority
   currentStatus     TicketStatus  @default(NEW)
+  requesterConfirmedResolved Boolean @default(false)
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   attachments       Attachment[]
+  publicComments    PublicComment[]
 
   @@index([requesterId])
   @@index([categoryId])
+}
+
+model PublicComment {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  Int
+  author    User     @relation(fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
 }
 
 model Attachment {

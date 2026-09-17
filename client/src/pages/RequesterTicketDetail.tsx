@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ChangeEvent } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
-import { apiDownload, apiGet, apiPatch, apiUploadFile, ApiUploadError } from '../api/http'
+import { apiDownload, apiGet, apiPatch, apiPost, apiUploadFile, ApiUploadError } from '../api/http'
 import { ALLOWED_TYPES, MAX_FILES, MAX_SIZE_BYTES } from '../components/AttachmentPicker'
-import { useRequester } from '../context/RequesterContext'
+import { useAuth } from '../context/AuthContext'
 
 interface Attachment {
   id: number
@@ -25,14 +25,25 @@ interface TicketDetailResponse {
   requestedPriority: 'LOW' | 'MEDIUM' | 'HIGH'
   currentStatus: string
   createdAt: string
+  updatedAt: string
+  requesterConfirmedResolved: boolean
   attachments: Attachment[]
+}
+
+interface PublicComment {
+  id: number
+  authorId: number
+  authorName: string
+  authorRole: 'REQUESTER' | 'IT_STAFF' | 'ADMINISTRATOR'
+  body: string
+  createdAt: string
 }
 
 type LoadState = 'loading' | 'loaded' | 'not-found' | 'error'
 
 export default function RequesterTicketDetail() {
   const { id } = useParams()
-  const { selectedRequester } = useRequester()
+  const { user } = useAuth()
 
   const [state, setState] = useState<LoadState>('loading')
   const [ticket, setTicket] = useState<TicketDetailResponse | null>(null)
@@ -41,10 +52,17 @@ export default function RequesterTicketDetail() {
   const [removeReason, setRemoveReason] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const [comments, setComments] = useState<PublicComment[]>([])
+  const [commentBody, setCommentBody] = useState('')
+  const [commentSubmitting, setCommentSubmitting] = useState(false)
+  const [commentError, setCommentError] = useState<string | null>(null)
+
+  const [confirmingResolved, setConfirmingResolved] = useState(false)
+
   const load = useCallback(() => {
-    if (!selectedRequester || !id) return
+    if (!user || !id) return
     setState('loading')
-    apiGet<TicketDetailResponse>(`/api/tickets/${id}`, selectedRequester.id)
+    apiGet<TicketDetailResponse>(`/api/tickets/${id}`)
       .then((data) => {
         setTicket(data)
         setState('loaded')
@@ -56,16 +74,27 @@ export default function RequesterTicketDetail() {
           setState('error')
         }
       })
-  }, [selectedRequester, id])
+  }, [user, id])
+
+  const loadComments = useCallback(() => {
+    if (!user || !id) return
+    apiGet<PublicComment[]>(`/api/tickets/${id}/public-comments`)
+      .then(setComments)
+      .catch(() => {})
+  }, [user, id])
 
   useEffect(() => {
     load()
   }, [load])
 
+  useEffect(() => {
+    loadComments()
+  }, [loadComments])
+
   const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (inputRef.current) inputRef.current.value = ''
-    if (!file || !selectedRequester || !ticket) return
+    if (!file || !user || !ticket) return
 
     setUploadError(null)
 
@@ -84,7 +113,7 @@ export default function RequesterTicketDetail() {
     }
 
     try {
-      await apiUploadFile(`/api/tickets/${ticket.id}/attachments`, file, selectedRequester.id)
+      await apiUploadFile(`/api/tickets/${ticket.id}/attachments`, file)
       load()
     } catch (err) {
       if (err instanceof ApiUploadError) {
@@ -96,11 +125,8 @@ export default function RequesterTicketDetail() {
   }
 
   const handleDownload = async (attachment: Attachment) => {
-    if (!selectedRequester || !ticket) return
-    const blob = await apiDownload(
-      `/api/tickets/${ticket.id}/attachments/${attachment.id}/download`,
-      selectedRequester.id,
-    )
+    if (!user || !ticket) return
+    const blob = await apiDownload(`/api/tickets/${ticket.id}/attachments/${attachment.id}/download`)
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -110,17 +136,48 @@ export default function RequesterTicketDetail() {
   }
 
   const confirmRemove = async () => {
-    if (!selectedRequester || !ticket || removingId === null) return
+    if (!user || !ticket || removingId === null) return
     if (removeReason.trim().length < 3) return
 
-    await apiPatch(
-      `/api/tickets/${ticket.id}/attachments/${removingId}/remove`,
-      { reason: removeReason.trim() },
-      selectedRequester.id,
-    )
+    await apiPatch(`/api/tickets/${ticket.id}/attachments/${removingId}/remove`, {
+      reason: removeReason.trim(),
+    })
     setRemovingId(null)
     setRemoveReason('')
     load()
+  }
+
+  const handlePostComment = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!ticket) return
+    const body = commentBody.trim()
+    if (body.length < 3 || body.length > 2000) {
+      setCommentError('Comment must be 3-2000 characters.')
+      return
+    }
+
+    setCommentSubmitting(true)
+    setCommentError(null)
+    try {
+      await apiPost(`/api/tickets/${ticket.id}/public-comments`, { body })
+      setCommentBody('')
+      loadComments()
+    } catch {
+      setCommentError('Unable to post your comment. Please try again.')
+    } finally {
+      setCommentSubmitting(false)
+    }
+  }
+
+  const handleConfirmResolved = async () => {
+    if (!ticket) return
+    setConfirmingResolved(true)
+    try {
+      await apiPatch(`/api/tickets/${ticket.id}/confirm-resolved`, {})
+      load()
+    } finally {
+      setConfirmingResolved(false)
+    }
   }
 
   if (state === 'loading') return <p className="container py-4">⏳ Loading...</p>
@@ -139,7 +196,7 @@ export default function RequesterTicketDetail() {
         <div className="row mb-2">
           <div className="col-6">
             <div className="text-muted small">Requester</div>
-            <div>{selectedRequester?.name}</div>
+            <div>{user?.name}</div>
           </div>
           <div className="col-6">
             <div className="text-muted small">Ticket Date</div>
@@ -253,6 +310,64 @@ export default function RequesterTicketDetail() {
           </p>
         )}
       </div>
+
+      <hr className="my-4" />
+
+      <h2>Public Comments</h2>
+
+      {comments.length === 0 && <p>No comments yet.</p>}
+
+      {comments.length > 0 && (
+        <ul className="list-group mb-3">
+          {comments.map((c) => (
+            <li key={c.id} className="list-group-item">
+              <div className="d-flex justify-content-between align-items-baseline">
+                <div>
+                  <strong>{c.authorName}</strong>{' '}
+                  <span className="badge" style={{ backgroundColor: '#EAF6EF', color: '#006B3C' }}>
+                    {c.authorRole}
+                  </span>
+                </div>
+                <span className="text-muted small">{new Date(c.createdAt).toLocaleString()}</span>
+              </div>
+              <div className="mt-1">{c.body}</div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <form onSubmit={handlePostComment} className="mb-4">
+        <label htmlFor="new-comment" className="form-label">
+          Add a comment
+        </label>
+        <textarea
+          id="new-comment"
+          className="form-control mb-2"
+          rows={3}
+          value={commentBody}
+          onChange={(e) => setCommentBody(e.target.value)}
+        />
+        {commentError && (
+          <p className="text-danger" role="alert">
+            {commentError}
+          </p>
+        )}
+        <button type="submit" className="btn btn-primary" disabled={commentSubmitting}>
+          {commentSubmitting ? 'Posting...' : 'Post Comment'}
+        </button>
+      </form>
+
+      <hr className="my-4" />
+
+      {ticket.requesterConfirmedResolved ? (
+        <div className="p-3" style={{ backgroundColor: '#F8F9F6', borderRadius: 8, color: '#6c757d' }}>
+          You indicated this looks resolved on {new Date(ticket.updatedAt).toLocaleDateString()}.
+        </div>
+      ) : (
+        <button type="button" className="btn btn-outline-primary" disabled={confirmingResolved} onClick={handleConfirmResolved}>
+          {confirmingResolved ? 'Saving...' : 'Problem Appears Resolved'}
+        </button>
+      )}
     </div>
   )
 }
