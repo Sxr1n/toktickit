@@ -1,12 +1,7 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000'
 
-export async function apiGet<T>(path: string, requesterId?: number): Promise<T> {
-  const headers: Record<string, string> = {}
-  if (requesterId !== undefined) {
-    headers['X-Dev-Requester-Id'] = String(requesterId)
-  }
-
-  const res = await fetch(`${API_BASE_URL}${path}`, { headers, credentials: 'include' })
+export async function apiGet<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`, { credentials: 'include' })
   if (!res.ok) {
     throw new Error(`Request to ${path} failed with status ${res.status}`)
   }
@@ -22,13 +17,10 @@ export class ApiValidationError extends Error {
   }
 }
 
-export async function apiPost<T>(path: string, body: unknown, requesterId: number): Promise<T> {
+export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Dev-Requester-Id': String(requesterId),
-    },
+    headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
     body: JSON.stringify(body),
   })
@@ -52,13 +44,12 @@ export class ApiUploadError extends Error {
   }
 }
 
-export async function apiUploadFile<T>(path: string, file: File, requesterId: number): Promise<T> {
+export async function apiUploadFile<T>(path: string, file: File): Promise<T> {
   const formData = new FormData()
   formData.append('file', file)
 
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method: 'POST',
-    headers: { 'X-Dev-Requester-Id': String(requesterId) },
     credentials: 'include',
     body: formData,
   })
@@ -73,13 +64,10 @@ export async function apiUploadFile<T>(path: string, file: File, requesterId: nu
   return res.json() as Promise<T>
 }
 
-export async function apiPatch<T>(path: string, body: unknown, requesterId: number): Promise<T> {
+export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Dev-Requester-Id': String(requesterId),
-    },
+    headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
     body: JSON.stringify(body),
   })
@@ -94,11 +82,8 @@ export async function apiPatch<T>(path: string, body: unknown, requesterId: numb
   return res.json() as Promise<T>
 }
 
-export async function apiDownload(path: string, requesterId: number): Promise<Blob> {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { 'X-Dev-Requester-Id': String(requesterId) },
-    credentials: 'include',
-  })
+export async function apiDownload(path: string): Promise<Blob> {
+  const res = await fetch(`${API_BASE_URL}${path}`, { credentials: 'include' })
   if (!res.ok) {
     throw new Error(`Download from ${path} failed with status ${res.status}`)
   }

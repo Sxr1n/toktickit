@@ -1,16 +1,19 @@
 import type { Prisma } from '../../generated/prisma/client'
+import type { RequestHandler } from 'express'
 import { Router } from 'express'
 import { prisma } from '../prisma'
-import { requireRequester } from '../middleware/requireRequester'
+import { requireAuth } from '../middleware/requireAuth'
+import { requireRole } from '../middleware/requireRole'
 
 const router = Router()
+const requireRequesterAuth: [RequestHandler, RequestHandler] = [requireAuth, requireRole('REQUESTER')]
 
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'] as const
 const SORT_FIELDS = ['createdAt', 'currentStatus'] as const
 const DEFAULT_PAGE_SIZE = 10
 const MAX_PAGE_SIZE = 50
 
-router.get('/tickets', requireRequester, async (req, res) => {
+router.get('/tickets', ...requireRequesterAuth, async (req, res) => {
   const q = req.query
 
   const page = Math.max(1, Number.parseInt(String(q.page ?? '1'), 10) || 1)
@@ -23,7 +26,7 @@ router.get('/tickets', requireRequester, async (req, res) => {
   const sortBy = SORT_FIELDS.includes(q.sortBy as never) ? (q.sortBy as 'createdAt' | 'currentStatus') : 'createdAt'
   const sortDir = q.sortDir === 'asc' ? 'asc' : 'desc'
 
-  const where: Prisma.TicketWhereInput = { requesterId: req.requesterId }
+  const where: Prisma.TicketWhereInput = { requesterId: req.user!.id }
 
   if (typeof q.search === 'string' && q.search.trim() !== '') {
     where.OR = [
@@ -74,14 +77,14 @@ router.get('/tickets', requireRequester, async (req, res) => {
   }
 })
 
-router.get('/tickets/:id', requireRequester, async (req, res) => {
+router.get('/tickets/:id', ...requireRequesterAuth, async (req, res) => {
   const id = Number(req.params.id)
   if (!Number.isInteger(id)) {
     return res.status(404).json({ error: 'NOT_FOUND' })
   }
 
   const ticket = await prisma.ticket.findFirst({
-    where: { id, requesterId: req.requesterId },
+    where: { id, requesterId: req.user!.id },
     include: {
       attachments: {
         select: {
@@ -132,7 +135,7 @@ function validateCreateTicket(body: unknown) {
   return { fields, summary, description, requestedPriority: requestedPriority as string }
 }
 
-router.post('/tickets', requireRequester, async (req, res) => {
+router.post('/tickets', ...requireRequesterAuth, async (req, res) => {
   const { fields, summary, description, requestedPriority } = validateCreateTicket(req.body)
 
   if (Object.keys(fields).length > 0) {
@@ -160,7 +163,7 @@ router.post('/tickets', requireRequester, async (req, res) => {
       const created = await tx.ticket.create({
         data: {
           ticketNumber: `PENDING-${Date.now()}`,
-          requesterId: req.requesterId!,
+          requesterId: req.user!.id,
           categoryId,
           relatedSystemId,
           summary,
@@ -176,6 +179,92 @@ router.post('/tickets', requireRequester, async (req, res) => {
   } catch {
     res.status(500).json({ error: 'Unable to create Ticket' })
   }
+})
+
+async function findOwnedTicket(ticketId: number, requesterId: number) {
+  return prisma.ticket.findFirst({ where: { id: ticketId, requesterId } })
+}
+
+router.get('/tickets/:id/public-comments', ...requireRequesterAuth, async (req, res) => {
+  const ticketId = Number(req.params.id)
+  if (!Number.isInteger(ticketId)) {
+    return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+  }
+
+  const ticket = await findOwnedTicket(ticketId, req.user!.id)
+  if (!ticket) {
+    return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+  }
+
+  const comments = await prisma.publicComment.findMany({
+    where: { ticketId },
+    orderBy: { id: 'asc' },
+    include: { author: { select: { name: true, role: true } } },
+  })
+
+  res.json(
+    comments.map((c) => ({
+      id: c.id,
+      authorId: c.authorId,
+      authorName: c.author.name,
+      authorRole: c.author.role,
+      body: c.body,
+      createdAt: c.createdAt,
+    })),
+  )
+})
+
+router.post('/tickets/:id/public-comments', ...requireRequesterAuth, async (req, res) => {
+  const ticketId = Number(req.params.id)
+  if (!Number.isInteger(ticketId)) {
+    return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+  }
+
+  const body = typeof req.body?.body === 'string' ? req.body.body.trim() : ''
+  if (body.length < 3 || body.length > 2000) {
+    return res.status(400).json({
+      error: { code: 'VALIDATION_FAILED', message: 'Comment must be 3-2000 characters.' },
+    })
+  }
+
+  const ticket = await findOwnedTicket(ticketId, req.user!.id)
+  if (!ticket) {
+    return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+  }
+
+  const comment = await prisma.publicComment.create({
+    data: { ticketId, authorId: req.user!.id, body },
+    include: { author: { select: { name: true, role: true } } },
+  })
+
+  res.status(201).json({
+    id: comment.id,
+    ticketId: comment.ticketId,
+    authorId: comment.authorId,
+    authorName: comment.author.name,
+    authorRole: comment.author.role,
+    body: comment.body,
+    createdAt: comment.createdAt,
+  })
+})
+
+router.patch('/tickets/:id/confirm-resolved', ...requireRequesterAuth, async (req, res) => {
+  const ticketId = Number(req.params.id)
+  if (!Number.isInteger(ticketId)) {
+    return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+  }
+
+  const ticket = await findOwnedTicket(ticketId, req.user!.id)
+  if (!ticket) {
+    return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+  }
+
+  const updated = await prisma.ticket.update({
+    where: { id: ticketId },
+    data: { requesterConfirmedResolved: true },
+  })
+
+  res.json(updated)
 })
 
 export default router

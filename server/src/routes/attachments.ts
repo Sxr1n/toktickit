@@ -1,12 +1,15 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import type { RequestHandler } from 'express'
 import { Router } from 'express'
 import multer from 'multer'
-import { requireRequester } from '../middleware/requireRequester'
+import { requireAuth } from '../middleware/requireAuth'
+import { requireRole } from '../middleware/requireRole'
 import { prisma } from '../prisma'
 import { upload, UPLOAD_DIR } from '../upload'
 
 const router = Router()
+const requireRequesterAuth: [RequestHandler, RequestHandler] = [requireAuth, requireRole('REQUESTER')]
 const MAX_ACTIVE_ATTACHMENTS = 5
 
 function handleUpload(req: import('express').Request, res: import('express').Response, next: import('express').NextFunction) {
@@ -33,7 +36,7 @@ async function findOwnedTicket(ticketId: number, requesterId: number | undefined
   return prisma.ticket.findFirst({ where: { id: ticketId, requesterId } })
 }
 
-router.post('/tickets/:id/attachments', requireRequester, handleUpload, async (req, res) => {
+router.post('/tickets/:id/attachments', ...requireRequesterAuth, handleUpload, async (req, res) => {
   const ticketId = Number(req.params.id)
   const file = req.file
 
@@ -45,7 +48,7 @@ router.post('/tickets/:id/attachments', requireRequester, handleUpload, async (r
     return res.status(400).json({ error: 'VALIDATION_ERROR', message: 'No file was provided.' })
   }
 
-  const ticket = await findOwnedTicket(ticketId, req.requesterId)
+  const ticket = await findOwnedTicket(ticketId, req.user!.id)
   if (!ticket) {
     cleanup()
     return res.status(404).json({ error: 'NOT_FOUND' })
@@ -80,11 +83,11 @@ router.post('/tickets/:id/attachments', requireRequester, handleUpload, async (r
   res.status(201).json(attachment)
 })
 
-router.get('/tickets/:id/attachments/:attachmentId', requireRequester, async (req, res) => {
+router.get('/tickets/:id/attachments/:attachmentId', ...requireRequesterAuth, async (req, res) => {
   const ticketId = Number(req.params.id)
   const attachmentId = Number(req.params.attachmentId)
 
-  const ticket = await findOwnedTicket(ticketId, req.requesterId)
+  const ticket = await findOwnedTicket(ticketId, req.user!.id)
   if (!ticket) return res.status(404).json({ error: 'NOT_FOUND' })
 
   const attachment = await prisma.attachment.findFirst({
@@ -104,11 +107,11 @@ router.get('/tickets/:id/attachments/:attachmentId', requireRequester, async (re
   res.json(attachment)
 })
 
-router.get('/tickets/:id/attachments/:attachmentId/download', requireRequester, async (req, res) => {
+router.get('/tickets/:id/attachments/:attachmentId/download', ...requireRequesterAuth, async (req, res) => {
   const ticketId = Number(req.params.id)
   const attachmentId = Number(req.params.attachmentId)
 
-  const ticket = await findOwnedTicket(ticketId, req.requesterId)
+  const ticket = await findOwnedTicket(ticketId, req.user!.id)
   if (!ticket) return res.status(404).json({ error: 'NOT_FOUND' })
 
   const attachment = await prisma.attachment.findFirst({ where: { id: attachmentId, ticketId } })
@@ -119,7 +122,7 @@ router.get('/tickets/:id/attachments/:attachmentId/download', requireRequester, 
   res.download(path.join(UPLOAD_DIR, attachment.storedName), attachment.originalName)
 })
 
-router.patch('/tickets/:id/attachments/:attachmentId/remove', requireRequester, async (req, res) => {
+router.patch('/tickets/:id/attachments/:attachmentId/remove', ...requireRequesterAuth, async (req, res) => {
   const ticketId = Number(req.params.id)
   const attachmentId = Number(req.params.attachmentId)
   const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : ''
@@ -130,7 +133,7 @@ router.patch('/tickets/:id/attachments/:attachmentId/remove', requireRequester, 
       .json({ error: 'VALIDATION_ERROR', fields: { reason: 'A removal reason of at least 3 characters is required.' } })
   }
 
-  const ticket = await findOwnedTicket(ticketId, req.requesterId)
+  const ticket = await findOwnedTicket(ticketId, req.user!.id)
   if (!ticket) return res.status(404).json({ error: 'NOT_FOUND' })
 
   const attachment = await prisma.attachment.findFirst({ where: { id: attachmentId, ticketId } })
