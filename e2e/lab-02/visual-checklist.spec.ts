@@ -5,7 +5,10 @@ async function clickNavLink(page: import('@playwright/test').Page, name: string)
   if (await toggle.isVisible()) {
     await toggle.click()
   }
-  await page.getByRole('link', { name }).click()
+  // Scoped to the nav landmark: the Create Ticket success screen's "View My Tickets" link is
+  // also a real <a role="link"> and its accessible name contains "My Tickets" as a substring,
+  // which an unscoped locator would ambiguously match too.
+  await page.getByRole('navigation').getByRole('link', { name }).click()
 }
 
 // Requested in PR #22 review (FramePongrit): screenshots alone don't fail the test on overflow,
