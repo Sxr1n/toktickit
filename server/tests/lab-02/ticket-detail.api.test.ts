@@ -8,7 +8,7 @@ let requesterBId: number
 let ticketOwnedByAId: number
 
 beforeAll(async () => {
-  const requesters = await prisma.requesterUser.findMany({ where: { isActive: true }, take: 2 })
+  const requesters = await prisma.user.findMany({ where: { isActive: true, role: 'REQUESTER' }, take: 2 })
   requesterAId = requesters[0].id
   requesterBId = requesters[1].id
   const category = await prisma.category.findFirstOrThrow()

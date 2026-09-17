@@ -15,8 +15,8 @@ export async function requireRequester(req: Request, res: Response, next: NextFu
     return res.status(401).json({ error: 'MISSING_REQUESTER', message: 'X-Dev-Requester-Id header is required' })
   }
 
-  const requester = await prisma.requesterUser.findUnique({ where: { id } })
-  if (!requester || !requester.isActive) {
+  const requester = await prisma.user.findUnique({ where: { id } })
+  if (!requester || !requester.isActive || requester.role !== 'REQUESTER') {
     return res.status(401).json({ error: 'INVALID_REQUESTER', message: 'Development Requester is not active' })
   }
 

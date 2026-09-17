@@ -33,16 +33,19 @@ accepted as authorization evidence, per the specification's own framing.
 
 | Test ID | AC / Requirement | What It Tests | Expected Result | Status |
 |---|---|---|---|---|
-| API-01 | AC-01 | Valid login | 200, session cookie set, correct role in body | Planned |
-| API-02 | AC-05 | Wrong password | 401 `INVALID_CREDENTIALS`, no cookie | Planned |
-| API-03 | AC-06 | Inactive account, correct password | 401 `INVALID_CREDENTIALS`, identical body/status to API-02 | Planned |
-| API-04 | BR-07 | Unknown email | 401 `INVALID_CREDENTIALS`, identical body/status to API-02 | Planned |
-| API-05 | AC-02, BR-02 | Login with `mustChangePassword=true` | Login succeeds but `GET /api/tickets` (or any normal route) still 403/redirects until password changed — asserted via a follow-up request in the same test | Planned |
-| API-06 | AC-07 | Logout then reuse old cookie | Logout 200; subsequent request with the same cookie is 401 | Planned |
-| API-07 | BR-11 | Expired session token | A token issued with a past expiry is rejected 401 | Planned |
-| API-08 | FR-04 | `GET /api/auth/me` | 200 with caller's own id/role only; 401 with no session | Planned |
-| API-09 | BR-08, BR-09 | Change password: weak new password / wrong current password | 400 with rule-specific `details`; 401 `INVALID_CURRENT_PASSWORD` | Planned |
-| API-10 | AC-02 | Change password success | 200, `mustChangePassword` cleared, subsequent normal-route request succeeds | Planned |
+| API-01 | AC-01 | Valid login | 200, session cookie set, correct role in body | Pass |
+| API-02 | AC-05 | Wrong password | 401 `INVALID_CREDENTIALS`, no cookie | Pass |
+| API-03 | AC-06 | Inactive account, correct password | 401 `INVALID_CREDENTIALS`, identical body/status to API-02 | Pass |
+| API-04 | BR-07 | Unknown email | 401 `INVALID_CREDENTIALS`, identical body/status to API-02 | Pass |
+| API-05 | AC-02, BR-02 | Login with `mustChangePassword=true` | `mustChangePassword: true` round-trips from login through `GET /api/auth/me` (the `requireFreshPassword` middleware that will actually gate business routes on this flag is built and unit-tested in this Issue, but not wired into any route until Issue 28 migrates the Requester routes onto real auth — there are no business routes to gate yet) | Pass |
+| API-06 | AC-07 | Logout then reuse old cookie | Logout 200; subsequent request with the same cookie is 401 (required a real fix: a stateless JWT with only `res.clearCookie()` doesn't invalidate server-side — added a `tokenVersion` column, bumped on logout) | Pass |
+| API-07 | BR-11 | Expired session token | A token issued with a past expiry is rejected 401 | Pass |
+| API-08 | FR-04 | `GET /api/auth/me` | 200 with caller's own id/role only; 401 with no session | Pass |
+| API-09 | BR-08, BR-09 | Change password: weak new password / wrong current password | 400 with rule-specific `details`; 401 `INVALID_CURRENT_PASSWORD` | Pass |
+| API-10 | AC-02 | Change password success | 200, `mustChangePassword` cleared, subsequent login with the new password succeeds | Pass |
+
+Unit-level (`server/tests/lab-03/auth-lib.unit.test.ts`): password-rule validator (BR-08) and the
+`requireFreshPassword` middleware's three branches, tested directly against mock req/res/next. Pass.
 
 ### 2.2 Authorization matrix — `server/tests/lab-03/authorization.api.test.ts`
 
@@ -111,8 +114,8 @@ accepted as authorization evidence, per the specification's own framing.
 
 | Test ID | Type | AC | What It Tests | File | Status |
 |---|---|---|---|---|---|
-| UI-01 | UI | AC-01, AC-05 | Login form validation, busy state, safe error rendering | `client/tests/lab-03/Login.test.tsx` | Planned |
-| UI-02 | UI | AC-02 | Change Password rule checklist live-updates; Continue disabled until valid+matching | `client/tests/lab-03/ChangePassword.test.tsx` | Planned |
+| UI-01 | UI | AC-01, AC-05 | Login form validation, busy state, safe error rendering | `client/tests/lab-03/Login.test.tsx` | Pass |
+| UI-02 | UI | AC-02 | Change Password rule checklist live-updates; Continue disabled until valid+matching | `client/tests/lab-03/ChangePassword.test.tsx` | Pass |
 | UI-03 | UI | FR-06 | AppShell renders only the current role's nav links; unauthorized links absent from the DOM | `client/tests/lab-03/AppShell.test.tsx` | Planned |
 | UI-04 | UI | AC-13 | Staff Queue renders multi-Requester rows, loading/empty/no-results/failure states | `client/tests/lab-03/StaffTicketQueue.test.tsx` | Planned |
 | UI-05 | UI | AC-14, AC-15 | Staff Ticket Detail: claim action, status-select narrowed to permitted transitions, Comments vs. Notes visually distinct containers | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Planned |
@@ -123,8 +126,13 @@ accepted as authorization evidence, per the specification's own framing.
 
 | Test ID | AC | What It Tests | Expected Result | File | Status |
 |---|---|---|---|---|---|
-| E2E-01 | AC-01, AC-07, AC-08 | Login → authenticated shell → logout → direct URL access blocked | Each step succeeds in order | `authentication.spec.ts` | Planned |
-| E2E-02 | AC-02 | Login with a temporary password → forced Change Password → normal app opens only after a valid change | Normal app unreachable until change completes | `first-login.spec.ts` | Planned |
+| E2E-01 | AC-08 | Direct navigation to a protected route with no session | Redirects to Login | `authentication.spec.ts` | Pass |
+| E2E-02 | AC-01, AC-02 | Login with a temporary password → forced Change Password → normal app opens only after a valid change | Normal app unreachable until change completes | `authentication.spec.ts` | Pass |
+
+Both landed in one file (`e2e/lab-03/authentication.spec.ts`) rather than the two originally
+planned, since AppShell/nav are not yet auth-aware (Issue 28) — there is no Logout button to click
+yet, so full "authenticated shell → logout" browser coverage is deferred to Issue 28; logout's
+server-side invalidation is already covered directly by API-06.
 | E2E-03 | AC-13, AC-14, AC-15, AC-17 | IT Staff logs in, claims a Ticket from the Queue, sets IT Priority, transitions status, posts a Public Comment and an Internal Note | All actions visible on reload | `staff-ticket-flow.spec.ts` | Planned |
 | E2E-04 | AC-18, AC-19 | Administrator creates a user, that user logs in and is forced through Change Password | Full loop succeeds | `user-administration.spec.ts` | Planned |
 
@@ -132,14 +140,14 @@ accepted as authorization evidence, per the specification's own framing.
 
 | AC | Covered by |
 |---|---|
-| AC-01 | API-01, UI-01, E2E-01 |
+| AC-01 | API-01, UI-01, E2E-02 |
 | AC-02 | API-05, API-10, UI-02, E2E-02 |
 | AC-03 | API-16 |
 | AC-04 | API-15 |
 | AC-05 | API-02, UI-01 |
 | AC-06 | API-03 |
-| AC-07 | API-06, E2E-01 |
-| AC-08 | API-11, E2E-01 |
+| AC-07 | API-06 |
+| AC-08 | E2E-01 (server-side 401-with-no-session coverage for the Requester/Attachment routes already exists from Lab 2; API-11's broader sweep across the new staff/admin route families lands in Issue 28) |
 | AC-09 | API-42, API-43 |
 | AC-10 | API-29 |
 | AC-11 | UI-07 |
@@ -191,10 +199,22 @@ npx playwright test
 
 Filled in as each Issue lands, mirroring Lab 2's practice — not reconstructed after the fact.
 
+Issue 27 (Authentication foundation): server 36/36 (19 Lab 1+2, 17 Lab 3 — 8 unit + 9 API), client
+24/24 (17 Lab 1+2, 7 Lab 3), E2E 5/5 (2 Lab 2, 1 Lab 2 visual, 2 Lab 3), all re-run to confirm no
+flakiness.
+
 ## 7. Known Limitations or Deferred Tests
 
 - Session-expiry (BR-11, API-07) is tested by issuing a token with a manually-set past expiry rather
   than waiting out a real 8-hour window.
 - Actions Taken, formal SLA/escalation, and notification tests are out of scope for Lab 3 (deferred to
   Lab 4 per the labsheet).
+- `e2e/lab-03/authentication.spec.ts`'s first-login test necessarily consumes one seeded Requester's
+  (Jennifer Anderson's) temporary-password state, since no account-creation capability exists yet to
+  give it a disposable one (that lands in Issue 31, Administrator User Management). The test restores
+  her *password* but not her `mustChangePassword: true` flag, since a successful change-password call
+  always clears that flag by design (BR-02) — there is no API yet to set it back without also changing
+  the password again. Re-run `npx prisma db seed` between an E2E run and a server-test run in the same
+  session; `server/tests/lab-03/auth.api.test.ts` itself no longer depends on this shared fixture
+  (it uses its own dedicated throwaway user) precisely because of this discovered fragility.
 - Load/performance testing of the Staff Queue at large Ticket counts is out of scope for this course lab.

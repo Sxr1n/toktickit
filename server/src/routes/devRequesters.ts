@@ -5,8 +5,8 @@ const router = Router()
 
 router.get('/dev-requesters', async (_req, res) => {
   try {
-    const requesters = await prisma.requesterUser.findMany({
-      where: { isActive: true },
+    const requesters = await prisma.user.findMany({
+      where: { isActive: true, role: 'REQUESTER' },
       orderBy: { id: 'asc' },
       select: { id: true, name: true, email: true },
     })
