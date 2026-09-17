@@ -9,7 +9,7 @@ let categoryId: number
 let relatedSystemId: number
 
 beforeAll(async () => {
-  const requesters = await prisma.requesterUser.findMany({ where: { isActive: true }, take: 2 })
+  const requesters = await prisma.user.findMany({ where: { isActive: true, role: 'REQUESTER' }, take: 2 })
   requesterAId = requesters[0].id
   requesterBId = requesters[1].id
   categoryId = (await prisma.category.findFirstOrThrow()).id

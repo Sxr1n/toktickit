@@ -6,7 +6,7 @@ export async function apiGet<T>(path: string, requesterId?: number): Promise<T> 
     headers['X-Dev-Requester-Id'] = String(requesterId)
   }
 
-  const res = await fetch(`${API_BASE_URL}${path}`, { headers })
+  const res = await fetch(`${API_BASE_URL}${path}`, { headers, credentials: 'include' })
   if (!res.ok) {
     throw new Error(`Request to ${path} failed with status ${res.status}`)
   }
@@ -29,6 +29,7 @@ export async function apiPost<T>(path: string, body: unknown, requesterId: numbe
       'Content-Type': 'application/json',
       'X-Dev-Requester-Id': String(requesterId),
     },
+    credentials: 'include',
     body: JSON.stringify(body),
   })
 
@@ -58,6 +59,7 @@ export async function apiUploadFile<T>(path: string, file: File, requesterId: nu
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method: 'POST',
     headers: { 'X-Dev-Requester-Id': String(requesterId) },
+    credentials: 'include',
     body: formData,
   })
 
@@ -78,6 +80,7 @@ export async function apiPatch<T>(path: string, body: unknown, requesterId: numb
       'Content-Type': 'application/json',
       'X-Dev-Requester-Id': String(requesterId),
     },
+    credentials: 'include',
     body: JSON.stringify(body),
   })
 
@@ -94,6 +97,7 @@ export async function apiPatch<T>(path: string, body: unknown, requesterId: numb
 export async function apiDownload(path: string, requesterId: number): Promise<Blob> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     headers: { 'X-Dev-Requester-Id': String(requesterId) },
+    credentials: 'include',
   })
   if (!res.ok) {
     throw new Error(`Download from ${path} failed with status ${res.status}`)

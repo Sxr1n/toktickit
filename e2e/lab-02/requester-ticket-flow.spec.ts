@@ -35,7 +35,7 @@ test.describe('E2E-01: full Requester ticket flow', () => {
     const ticketNumber = await page.locator('strong').innerText()
     expect(ticketNumber).toMatch(/^TKT-\d{4}-\d{6}$/)
 
-    await page.getByRole('link', { name: 'My Tickets' }).click()
+    await page.getByRole('navigation').getByRole('link', { name: 'My Tickets' }).click()
     await page.getByLabel('Search').fill(marker)
     const ticketLink = page.locator('a:visible', { hasText: ticketNumber }).first()
     await expect(ticketLink).toBeVisible()
@@ -75,14 +75,14 @@ test.describe('E2E-02: switching Requester', () => {
     await expect(page.getByText('Ticket created')).toBeVisible()
     const ticketNumber = await page.locator('strong').innerText()
 
-    await page.getByRole('link', { name: 'My Tickets' }).click()
+    await page.getByRole('navigation').getByRole('link', { name: 'My Tickets' }).click()
     await page.getByLabel('Search').fill(marker)
     await expect(page.locator('a:visible', { hasText: ticketNumber }).first()).toBeVisible()
 
     await page.getByRole('button', { name: 'Change Requester' }).click()
     await selectRequester(page, 'David Lee')
 
-    await page.getByRole('link', { name: 'My Tickets' }).click()
+    await page.getByRole('navigation').getByRole('link', { name: 'My Tickets' }).click()
     await page.getByLabel('Search').fill(marker)
     await expect(page.getByText('No tickets match your search/filters.')).toBeVisible()
     await expect(page.getByText(marker)).not.toBeVisible()

@@ -8,7 +8,7 @@ let categoryId: number
 let relatedSystemId: number
 
 beforeAll(async () => {
-  const requester = await prisma.requesterUser.findFirstOrThrow({ where: { isActive: true } })
+  const requester = await prisma.user.findFirstOrThrow({ where: { isActive: true, role: 'REQUESTER' } })
   const category = await prisma.category.findFirstOrThrow()
   const relatedSystem = await prisma.relatedSystem.findFirstOrThrow({ where: { isActive: true } })
   requesterId = requester.id

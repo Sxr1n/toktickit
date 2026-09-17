@@ -2,8 +2,16 @@
 
 CPE334 coursework project — an IT service desk ticketing application built incrementally across labs.
 Lab 1 proved the stack (React + TypeScript + Vite + Bootstrap, Express + TypeScript, Prisma + PostgreSQL)
-works end to end. Lab 2 builds the Requester-facing ticketing MVP on top of it: a temporary Development
-Requester selector, Create Ticket, My Tickets, Ticket Detail, and the Attachment lifecycle.
+works end to end. Lab 2 built the Requester-facing ticketing MVP on top of it: a temporary Development
+Requester selector, Create Ticket, My Tickets, Ticket Detail, and the Attachment lifecycle. Lab 3 (in
+progress) replaces that temporary selector with real authentication and role-based authorization for
+three roles — Requester, IT Staff, Administrator — and adds the first IT Staff Ticket Queue/Detail
+workflow and Administrator user management. See `docs/lab-03/` for the full sprint contract.
+
+**Lab 3 seeded accounts (local development only, never a real secret):** every seeded account's password
+is `DevPass123!`. Requesters (`jennifer.anderson@example.com` and 3 others) must change this password at
+first login; seeded IT Staff (`priya.nakamura@example.com` and 2 others) and the Administrator
+(`taylor.admin@example.com`) do not. See `server/prisma/seed.ts` for the full list.
 
 ## Tech stack
 
