@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: toktickit-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: toktickit
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      # Host port 5433, not 5432, so this doesn't collide with a native/other local Postgres.
+      - "5433:5432"
+    volumes:
+      - toktickit_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d toktickit"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  toktickit_pgdata:
