@@ -28,6 +28,7 @@ beforeAll(async () => {
       summary: 'Ticket owned by Requester A for detail test',
       description: 'Seed ticket to verify ownership-scoped Ticket Detail retrieval.',
       requestedPriority: 'LOW',
+      itPriority: 'LOW',
     },
   })
   ticketOwnedByAId = ticket.id

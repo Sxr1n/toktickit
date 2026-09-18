@@ -26,6 +26,7 @@ beforeAll(async () => {
         summary,
         description: 'Seed ticket used to exercise attachment upload/download/remove behavior.',
         requestedPriority: 'MEDIUM',
+        itPriority: 'MEDIUM',
       },
     })
 

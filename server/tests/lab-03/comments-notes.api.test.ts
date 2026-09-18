@@ -29,6 +29,7 @@ beforeAll(async () => {
       summary: 'Ticket owned by Requester A for Public Comments tests',
       description: 'Seed ticket used to exercise Public Comments and confirm-resolved behavior.',
       requestedPriority: 'LOW',
+      itPriority: 'LOW',
     },
   })
   ticketOwnedByAId = ticket.id
