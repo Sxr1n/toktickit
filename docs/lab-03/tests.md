@@ -76,12 +76,12 @@ Staff/Administrator users, 403 for a Requester.
 
 | Test ID | AC / Requirement | What It Tests | Expected Result | Status |
 |---|---|---|---|---|
-| API-23 | AC-14, BR-17 | Claim an unassigned Ticket | 200, `ticketOwnerId` set to caller | Planned |
-| API-24 | BR-17 | Reassign to an inactive user / a Requester id | 400 — target must be active IT Staff/Administrator | Planned |
-| API-25 | BR-18, BR-19 | Set IT Priority; attempt to change Requested Priority | IT Priority updates; Requested Priority PATCH rejected/ignored | Planned |
-| API-26 | AC-15, AC-16, BR-21 | Every permitted transition in the matrix; several invalid pairs (e.g. New→Closed, Cancelled→anything) | Permitted: 200. Invalid: 400 `INVALID_TRANSITION`, no state change | Planned |
-| API-27 | AC-15 | Requester attempts a status PATCH on their own Ticket | 403 | Planned |
-| API-28 | BR-22 | Requester confirms resolved, then IT Staff moves status back to In Progress | Flag resets to false | Planned |
+| API-23 | AC-14, BR-17 | Claim an unassigned Ticket | 200, `ticketOwnerId` set to caller | Pass |
+| API-24 | BR-17 | Reassign to an inactive user / a Requester id | 400 — target must be active IT Staff/Administrator | Pass |
+| API-25 | BR-18, BR-19 | Set IT Priority; attempt to change Requested Priority | IT Priority updates; Requested Priority PATCH rejected/ignored | Pass (there is no route that accepts Requested Priority at all post-creation, so BR-19 is verified by asserting the closest related endpoint — IT Priority PATCH — never touches it) |
+| API-26 | AC-15, AC-16, BR-21 | Every permitted transition in the matrix; several invalid pairs (e.g. New→Closed, Cancelled→anything) | Permitted: 200. Invalid: 400 `INVALID_TRANSITION`, no state change | Pass (representative permitted/invalid pairs covering every row's shape, not all 8×8 combinations) |
+| API-27 | AC-15 | Requester attempts a status PATCH on their own Ticket | 403 | Pass |
+| API-28 | BR-22 | Requester confirms resolved, then IT Staff moves status back to In Progress | Flag resets to false | Pass (also covers the Waiting for Requester case, and confirms a non-resuming transition like Resolved does NOT reset the flag) |
 
 ### 2.5 Comments and Notes — `server/tests/lab-03/comments-notes.api.test.ts`
 
@@ -90,8 +90,14 @@ Staff/Administrator users, 403 for a Requester.
 | API-29 | AC-10, BR-24 | Post a valid Public Comment | 201, appears in a subsequent GET | Pass |
 | API-30 | BR-24 | Post empty/whitespace-only, or >2000 chars | 400 in both cases | Pass |
 | API-31 | BR-26 | Requester posts/reads Public Comments on another Requester's Ticket | 404 | Pass |
-| API-32 | AC-17, BR-04 | IT Staff posts an Internal Note; Requester's Public Comments fetch | Note visible to staff GET; absent from the Requester-facing endpoint entirely | Planned (Internal Notes and IT Staff routes land in Issue 30) |
-| API-33 | BR-25 | Comment/Note author and timestamp | Both are server-set; a client-supplied `authorId`/`createdAt` in the body is ignored | Pass (Public Comment half only; Internal Note half lands with API-32 in Issue 30) |
+| API-32 | AC-17, BR-04 | IT Staff posts an Internal Note; Requester's Public Comments fetch | Note visible to staff GET; absent from the Requester-facing endpoint entirely | Pass (`server/tests/lab-03/staff-ticket-detail.api.test.ts`) |
+| API-33 | BR-25 | Comment/Note author and timestamp | Both are server-set; a client-supplied `authorId`/`createdAt` in the body is ignored | Pass (both halves — Public Comment in `comments-notes.api.test.ts`, Internal Note in `staff-ticket-detail.api.test.ts`) |
+
+Also covered in this Issue: `/api/tickets/:id/public-comments` (GET and POST) is broadened from
+Requester-only to also accept IT Staff/Administrator on any Ticket (BR-26, FR-17) — the ownership
+check becomes role-conditional (`findTicketVisibleForComment` in `tickets.ts`) rather than a second
+route. A Requester's own read/write access is unaffected; see the "IT Staff access to Public
+Comments" block in `comments-notes.api.test.ts`.
 
 ### 2.6 Administrator — `server/tests/lab-03/users-admin.api.test.ts`
 
@@ -121,7 +127,7 @@ Staff/Administrator users, 403 for a Requester.
 | UI-02 | UI | AC-02 | Change Password rule checklist live-updates; Continue disabled until valid+matching | `client/tests/lab-03/ChangePassword.test.tsx` | Pass |
 | UI-03 | UI | FR-06 | AppShell renders only the current role's nav links; unauthorized links absent from the DOM | `client/tests/lab-03/AppShell.test.tsx` | Planned |
 | UI-04 | UI | AC-13 | Staff Queue renders multi-Requester rows, loading/empty/no-results/failure states | `client/tests/lab-03/StaffTicketQueue.test.tsx` | Pass |
-| UI-05 | UI | AC-14, AC-15 | Staff Ticket Detail: claim action, status-select narrowed to permitted transitions, Comments vs. Notes visually distinct containers | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Planned |
+| UI-05 | UI | AC-14, AC-15 | Staff Ticket Detail: claim action, status-select narrowed to permitted transitions, Comments vs. Notes visually distinct containers | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Pass |
 | UI-06 | UI | AC-18, AC-20 | User Management: create/edit form validation, disabled self-deactivate/last-admin buttons with visible reason | `client/tests/lab-03/UserManagement.test.tsx` | Planned |
 | UI-07 | UI | AC-11 | Requester Ticket Detail: Problem Appears Resolved button becomes a confirmation chip, Current Status badge unchanged | `client/tests/lab-03/RequesterTicketDetail.test.tsx` | Pass |
 
@@ -226,6 +232,33 @@ visual-QA Issue). All re-run to confirm no flakiness. Manual verification: logge
 a Requester in a real browser — the Requester correctly sees no "My Queue" nav link and gets a safe
 "Not authorized" page on direct navigation to `/staff/tickets`; the Queue's filters, sorting, and the
 390px stacked-card layout (no horizontal overflow) all confirmed against the real running app.
+
+Issue 30 (IT Staff Ticket Detail operations): server 82/82 (25 new — 24 in
+`staff-ticket-detail.api.test.ts` covering GET detail, claim/reassign/unassign, invalid-owner
+rejection, IT Priority update, every representative status transition including a terminal-state
+and an invalid-pair case, the Requester-forbidden status PATCH, the `requesterConfirmedResolved`
+reset on resuming work, Internal Notes read/write/validation/role-gate, and staff attachment
+view/download access (see the found-bug note below); 1 new in `comments-notes.api.test.ts` for IT
+Staff's now-broadened Public Comments access), client 32/32 (6
+new UI-05 tests: claim action with optimistic-update rollback on failure, status-select narrowing
+for both a mid-flow and a terminal status, the two-container Comments/Notes layout, and posting an
+Internal Note; plus 2 covering the attachment-visibility fix described below). E2E unchanged at 7/7
+(dedicated Staff flow E2E coverage lands in Issue 32). All re-run to confirm no flakiness (one
+transient Playwright "Target crashed" browser crash on a retry, confirmed environmental by an
+immediate clean re-run). Manual verification in a real browser: claimed/reassigned a Ticket Owner,
+changed IT Priority, and changed Current Status, each confirmed to survive a hard page reload (not
+just an optimistic UI illusion); confirmed the Status select only ever offered the permitted next
+statuses, including re-narrowing correctly after a transition; posted a Public Comment and an
+Internal Note, both appearing immediately and surviving a reload, with the Internal Notes section
+visually distinct and labeled "Internal — not visible to Requester"; confirmed a Requester gets a
+safe "Not authorized" page on direct navigation to a Staff Ticket Detail URL. **Found and fixed a
+real bug during this pass**: the Staff Download button silently failed (403) because
+`GET /api/tickets/:id/attachments/:attachmentId(/download)` was still gated to Requester-only
+ownership from Lab 2, with no staff-facing equivalent — `ui-spec.md` §8 and `specification.md`
+FR-13 both require IT Staff to view/download existing Attachments. Fixed by broadening those two
+routes' visibility check to be role-conditional (`findTicketVisibleForAttachment` in
+`attachments.ts`, mirroring the same pattern already used for Public Comments) while leaving
+upload and remove Requester-only, exactly as specified.
 
 ## 7. Known Limitations or Deferred Tests
 
