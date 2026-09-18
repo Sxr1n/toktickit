@@ -186,13 +186,27 @@ async function findOwnedTicket(ticketId: number, requesterId: number) {
   return prisma.ticket.findFirst({ where: { id: ticketId, requesterId } })
 }
 
-router.get('/tickets/:id/public-comments', ...requireRequesterAuth, async (req, res) => {
+// BR-26: a Requester may only post/read Public Comments on Tickets they own; IT Staff/Administrator
+// may post/read on any Ticket.
+const requireCommentAuth: [RequestHandler, RequestHandler] = [
+  requireAuth,
+  requireRole('REQUESTER', 'IT_STAFF', 'ADMINISTRATOR'),
+]
+
+async function findTicketVisibleForComment(ticketId: number, user: { id: number; role: string }) {
+  if (user.role === 'REQUESTER') {
+    return findOwnedTicket(ticketId, user.id)
+  }
+  return prisma.ticket.findUnique({ where: { id: ticketId } })
+}
+
+router.get('/tickets/:id/public-comments', ...requireCommentAuth, async (req, res) => {
   const ticketId = Number(req.params.id)
   if (!Number.isInteger(ticketId)) {
     return res.status(404).json({ error: { code: 'NOT_FOUND' } })
   }
 
-  const ticket = await findOwnedTicket(ticketId, req.user!.id)
+  const ticket = await findTicketVisibleForComment(ticketId, req.user!)
   if (!ticket) {
     return res.status(404).json({ error: { code: 'NOT_FOUND' } })
   }
@@ -215,7 +229,7 @@ router.get('/tickets/:id/public-comments', ...requireRequesterAuth, async (req, 
   )
 })
 
-router.post('/tickets/:id/public-comments', ...requireRequesterAuth, async (req, res) => {
+router.post('/tickets/:id/public-comments', ...requireCommentAuth, async (req, res) => {
   const ticketId = Number(req.params.id)
   if (!Number.isInteger(ticketId)) {
     return res.status(404).json({ error: { code: 'NOT_FOUND' } })
@@ -228,7 +242,7 @@ router.post('/tickets/:id/public-comments', ...requireRequesterAuth, async (req,
     })
   }
 
-  const ticket = await findOwnedTicket(ticketId, req.user!.id)
+  const ticket = await findTicketVisibleForComment(ticketId, req.user!)
   if (!ticket) {
     return res.status(404).json({ error: { code: 'NOT_FOUND' } })
   }

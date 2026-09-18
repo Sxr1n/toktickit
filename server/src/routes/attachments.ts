@@ -10,6 +10,12 @@ import { upload, UPLOAD_DIR } from '../upload'
 
 const router = Router()
 const requireRequesterAuth: [RequestHandler, RequestHandler] = [requireAuth, requireRole('REQUESTER')]
+// FR-13: IT Staff/Administrator may view/download existing Attachments on any Ticket; upload and
+// remove remain Requester-only per Lab 2's ownership model.
+const requireViewAuth: [RequestHandler, RequestHandler] = [
+  requireAuth,
+  requireRole('REQUESTER', 'IT_STAFF', 'ADMINISTRATOR'),
+]
 const MAX_ACTIVE_ATTACHMENTS = 5
 
 function handleUpload(req: import('express').Request, res: import('express').Response, next: import('express').NextFunction) {
@@ -34,6 +40,13 @@ function handleUpload(req: import('express').Request, res: import('express').Res
 
 async function findOwnedTicket(ticketId: number, requesterId: number | undefined) {
   return prisma.ticket.findFirst({ where: { id: ticketId, requesterId } })
+}
+
+async function findTicketVisibleForAttachment(ticketId: number, user: { id: number; role: string }) {
+  if (user.role === 'REQUESTER') {
+    return findOwnedTicket(ticketId, user.id)
+  }
+  return prisma.ticket.findUnique({ where: { id: ticketId } })
 }
 
 router.post('/tickets/:id/attachments', ...requireRequesterAuth, handleUpload, async (req, res) => {
@@ -83,11 +96,11 @@ router.post('/tickets/:id/attachments', ...requireRequesterAuth, handleUpload, a
   res.status(201).json(attachment)
 })
 
-router.get('/tickets/:id/attachments/:attachmentId', ...requireRequesterAuth, async (req, res) => {
+router.get('/tickets/:id/attachments/:attachmentId', ...requireViewAuth, async (req, res) => {
   const ticketId = Number(req.params.id)
   const attachmentId = Number(req.params.attachmentId)
 
-  const ticket = await findOwnedTicket(ticketId, req.user!.id)
+  const ticket = await findTicketVisibleForAttachment(ticketId, req.user!)
   if (!ticket) return res.status(404).json({ error: 'NOT_FOUND' })
 
   const attachment = await prisma.attachment.findFirst({
@@ -107,11 +120,11 @@ router.get('/tickets/:id/attachments/:attachmentId', ...requireRequesterAuth, as
   res.json(attachment)
 })
 
-router.get('/tickets/:id/attachments/:attachmentId/download', ...requireRequesterAuth, async (req, res) => {
+router.get('/tickets/:id/attachments/:attachmentId/download', ...requireViewAuth, async (req, res) => {
   const ticketId = Number(req.params.id)
   const attachmentId = Number(req.params.attachmentId)
 
-  const ticket = await findOwnedTicket(ticketId, req.user!.id)
+  const ticket = await findTicketVisibleForAttachment(ticketId, req.user!)
   if (!ticket) return res.status(404).json({ error: 'NOT_FOUND' })
 
   const attachment = await prisma.attachment.findFirst({ where: { id: attachmentId, ticketId } })

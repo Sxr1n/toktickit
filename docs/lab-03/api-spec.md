@@ -54,6 +54,11 @@ All paths, methods, request/response shapes, and status codes are **unchanged fr
 any part of the request. `POST /api/tickets` additionally sets `itPriority` to the submitted
 `requestedPriority` at creation time (BR-18).
 
+**Exception (added in Issue 30, per FR-13):** `GET /api/tickets/:id/attachments/:attachmentId` and
+`GET /api/tickets/:id/attachments/:attachmentId/download` also accept `IT_STAFF`/`ADMINISTRATOR`,
+visible on any Ticket (not ownership-scoped for those two roles). `POST .../attachments` (upload)
+and `PATCH .../attachments/:attachmentId/remove` stay `requireRole('REQUESTER')`-only, unchanged.
+
 ### POST /api/tickets/:id/public-comments
 
 Request: `{ "body": string }`
