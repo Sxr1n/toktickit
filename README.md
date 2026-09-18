@@ -78,16 +78,31 @@ one release PR is opened from `<lab>-staging` into `main`.
 
 ## Getting started
 
-Prerequisites: Node.js 20+, PostgreSQL running locally with a `toktickit` database.
+Prerequisites: Node.js 20+, and a PostgreSQL `toktickit` database reachable at the URL in
+`server/.env`.
+
+### Database (Docker)
+
+The simplest way to get Postgres running locally is via the root `docker-compose.yml`, which starts
+it on host port **5433** (not 5432, so it won't collide with a native/other local Postgres install):
+
+```
+docker compose up -d          # starts Postgres in the background, with a persistent named volume
+docker compose down           # stops it (data persists in the volume)
+docker compose down -v        # stops it AND wipes the volume, for a fully clean slate
+```
+
+`server/.env.example`'s `DATABASE_URL` already points at `localhost:5433` to match. If you'd rather
+run your own Postgres instance instead of Docker, just point `DATABASE_URL` at it (any port works).
 
 ### Backend
 
 ```
 cd server
 npm install
-cp .env.example .env    # edit DATABASE_URL if your local Postgres differs
-npx prisma migrate dev  # applies all migrations (Category, RequesterUser, Ticket, Attachment, ...)
-npm run seed             # idempotent: categories, related systems, Development Requesters
+cp .env.example .env    # edit DATABASE_URL if your Postgres isn't the Docker Compose one above
+npx prisma migrate dev  # applies all migrations (Category, User, Ticket, Attachment, ...)
+npm run seed             # idempotent: categories, related systems, seeded Users
 npm run dev              # starts the API on http://localhost:4000
 ```
 
