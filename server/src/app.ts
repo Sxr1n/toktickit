@@ -1,6 +1,7 @@
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import express from 'express'
+import adminRouter from './routes/admin'
 import attachmentsRouter from './routes/attachments'
 import authRouter from './routes/auth'
 import categoriesRouter from './routes/categories'
@@ -27,5 +28,6 @@ app.use('/api', ticketsRouter)
 app.use('/api', attachmentsRouter)
 app.use('/api', authRouter)
 app.use('/api', staffRouter)
+app.use('/api', adminRouter)
 
 export default app

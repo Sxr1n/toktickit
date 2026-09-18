@@ -103,14 +103,25 @@ Comments" block in `comments-notes.api.test.ts`.
 
 | Test ID | AC / Requirement | What It Tests | Expected Result | Status |
 |---|---|---|---|---|
-| API-34 | FR-19 | List users; search by name/email; role filter | Correct subset returned; no pagination metadata required | Planned |
-| API-35 | AC-18, FR-20 | Create user with initial password | 201, `mustChangePassword: true`; that user can then log in and is forced through Change Password | Planned |
-| API-36 | AC-19, BR-28 | Duplicate email (case-insensitive) on create and on edit | 409 `EMAIL_TAKEN` in both cases | Planned |
-| API-37 | FR-21 | Edit name/email/role/isActive | 200, fields updated | Planned |
-| API-38 | FR-22, BR-31 | Reset an existing user's password | 200, `mustChangePassword` set true for that user | Planned |
-| API-39 | AC-20, BR-29 | Administrator deactivates their own account | 409 `SELF_DEACTIVATION` | Planned |
-| API-40 | AC-20, BR-30 | Deactivate/reassign-role the last active Administrator | 409 `LAST_ADMINISTRATOR` | Planned |
-| API-41 | BR-27 | Create user with an invalid/missing role | 400 | Planned |
+| API-34 | FR-19 | List users; search by name/email; role filter | Correct subset returned; no pagination metadata required | Pass |
+| API-35 | AC-18, FR-20 | Create user with initial password | 201, `mustChangePassword: true`; that user can then log in and is forced through Change Password | Pass |
+| API-36 | AC-19, BR-28 | Duplicate email (case-insensitive) on create and on edit | 409 `EMAIL_TAKEN` in both cases | Pass |
+| API-37 | FR-21 | Edit name/email/role/isActive | 200, fields updated | Pass |
+| API-38 | FR-22, BR-31 | Reset an existing user's password | 200, `mustChangePassword` set true for that user | Pass |
+| API-39 | AC-20, BR-29 | Administrator deactivates their own account | 409 `SELF_DEACTIVATION` | Pass (dedicated throwaway Administrator, not the shared seeded taylor.admin -- unconditional regardless of admin count) |
+| API-40 | AC-20, BR-30 | Deactivate/reassign-role the last active Administrator | 409 `LAST_ADMINISTRATOR` | Pass (see note below on which path is actually reachable) |
+| API-41 | BR-27 | Create user with an invalid/missing role | 400 | Pass |
+
+**Note on API-40's reachable path**: since every `/api/admin/*` route requires the caller to be an
+*active* Administrator, the caller themselves always counts as "another active Administrator"
+whenever they target someone else -- so a different-caller-deactivates-the-target scenario can
+never actually reduce the active-Administrator count to zero except by construction. The only path
+that can genuinely occur is a sole active Administrator attempting to change **their own role**
+away from Administrator (self-deactivation via `isActive` is separately and unconditionally
+blocked by `SELF_DEACTIVATION`/BR-29 first, regardless of count). The test isolates this by
+temporarily deactivating every other active Administrator in the test database, asserting the
+409, then restoring them in a `finally` block. A second test confirms the ordinary case --
+deactivating a *different* active Administrator while another remains active -- is allowed.
 
 ### 2.7 Migration / regression — `server/tests/lab-03/migration.api.test.ts`
 
@@ -128,7 +139,7 @@ Comments" block in `comments-notes.api.test.ts`.
 | UI-03 | UI | FR-06 | AppShell renders only the current role's nav links; unauthorized links absent from the DOM | `client/tests/lab-03/AppShell.test.tsx` | Planned |
 | UI-04 | UI | AC-13 | Staff Queue renders multi-Requester rows, loading/empty/no-results/failure states | `client/tests/lab-03/StaffTicketQueue.test.tsx` | Pass |
 | UI-05 | UI | AC-14, AC-15 | Staff Ticket Detail: claim action, status-select narrowed to permitted transitions, Comments vs. Notes visually distinct containers | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Pass |
-| UI-06 | UI | AC-18, AC-20 | User Management: create/edit form validation, disabled self-deactivate/last-admin buttons with visible reason | `client/tests/lab-03/UserManagement.test.tsx` | Planned |
+| UI-06 | UI | AC-18, AC-20 | User Management: create/edit form validation, disabled self-deactivate/last-admin buttons with visible reason | `client/tests/lab-03/UserManagement.test.tsx` | Pass |
 | UI-07 | UI | AC-11 | Requester Ticket Detail: Problem Appears Resolved button becomes a confirmation chip, Current Status badge unchanged | `client/tests/lab-03/RequesterTicketDetail.test.tsx` | Pass |
 
 ### 2.9 End-to-end — `e2e/lab-03/`
@@ -259,6 +270,50 @@ FR-13 both require IT Staff to view/download existing Attachments. Fixed by broa
 routes' visibility check to be role-conditional (`findTicketVisibleForAttachment` in
 `attachments.ts`, mirroring the same pattern already used for Public Comments) while leaving
 upload and remove Requester-only, exactly as specified.
+
+Issue 31 (Administrator User Management): server 101/101 (19 new in `users-admin.api.test.ts`
+covering the role gate, search/role-filter, create with a temporary password that forces Change
+Password, duplicate-email on both create and edit, general field edits, password reset, the
+unconditional self-deactivation block, the last-active-Administrator block (see the note above on
+which path is actually reachable) plus the ordinary allowed-deactivation case, and invalid/missing
+role rejection), client 39/39 (7 new UI-06 tests: create-form Save gating, an inline duplicate-email
+server error, the self-deactivation disabled state with its visible reason text, the
+last-Administrator disabled state with its (different) visible reason text, the enabled case when
+another active Administrator remains, plus the 2 regression tests described below). E2E unchanged
+at 7/7 (dedicated Administrator flow E2E coverage lands in Issue 32). All re-run to confirm no
+flakiness. Manual verification in a real browser confirmed the list (search, role filter, no
+pagination), the Create panel's live password-rule checklist and Save gating, editing a user and
+having it persist across a reload, the "Set New Password" sub-form as a distinct step from the main
+Save action, the self-deactivation disabled state showing real page text (not just a hover
+tooltip), the ordinary deactivate-a-non-last-admin path, and a non-Administrator getting a safe
+"Not authorized" page on direct navigation — no user rows leaked. The true
+sole-active-Administrator 409 path could not be exercised through the UI alone (reaching it
+requires deactivating the acting Administrator's own account first, which the self-deactivation
+rule correctly blocks) — expected, and already covered directly at the API level by
+`users-admin.api.test.ts`.
+
+**Found and fixed three real bugs during this pass**, all in `client/src/pages/UserManagement.tsx`:
+1. The success message after Create/Edit was set but never rendered — `handleSubmit` called
+   `closePanel()` right after `setSuccessMessage(...)`, and the message's `<p>` only existed inside
+   the now-unmounted panel. Fixed by moving the success banner to the top of the page, outside the
+   panel, so it survives the panel closing.
+2. The last-active-Administrator safety check (`activeAdminCount`) was computed from the
+   currently-*filtered* list, not the true full user list — searching/filtering the list down to
+   one admin's row could wrongly disable their Active checkbox with a misleading "last
+   Administrator" reason even when other active Administrators existed but were simply filtered out
+   of view. Fixed by fetching the full unfiltered list once and doing search/role filtering
+   client-side, so the safety-check count is always computed from the complete list.
+3. The user list `<table>` had no overflow container; a sufficiently wide/full table could visually
+   overflow into the adjacent create/edit panel's column, and because that column's div still
+   occupied the same screen region (Bootstrap's default `align-items: stretch`), it silently
+   intercepted clicks meant for the Edit buttons underneath — confirmed via
+   `document.elementFromPoint` that clicks landed on the invisible panel div, not the button. Fixed
+   by wrapping the table in a standard Bootstrap `.table-responsive` container.
+
+Each fix is covered by a new or corrected test (bug 1: a new create-success test asserting the
+message survives the panel closing; bug 2: a new regression test that narrows the visible list via
+search before editing and asserts the checkbox stays enabled; bug 3 is a layout fix without direct
+unit-test coverage, verified manually).
 
 ## 7. Known Limitations or Deferred Tests
 

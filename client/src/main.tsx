@@ -15,6 +15,7 @@ import MyTickets from './pages/MyTickets.tsx'
 import RequesterTicketDetail from './pages/RequesterTicketDetail.tsx'
 import StaffTicketDetail from './pages/StaffTicketDetail.tsx'
 import StaffTicketQueue from './pages/StaffTicketQueue.tsx'
+import UserManagement from './pages/UserManagement.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -69,6 +70,14 @@ createRoot(document.getElementById('root')!).render(
               element={
                 <RequireRole roles={['IT_STAFF', 'ADMINISTRATOR']}>
                   <StaffTicketDetail />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <RequireRole roles={['ADMINISTRATOR']}>
+                  <UserManagement />
                 </RequireRole>
               }
             />
