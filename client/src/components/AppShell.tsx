@@ -31,6 +31,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
           My Queue
         </Link>
       )}
+      {user.role === 'ADMINISTRATOR' && (
+        <Link className="nav-link text-white" to="/admin/users" onClick={() => setMenuOpen(false)}>
+          Users
+        </Link>
+      )}
       <span className="text-white">
         {user.name} ({user.role})
       </span>
