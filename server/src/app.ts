@@ -6,6 +6,7 @@ import authRouter from './routes/auth'
 import categoriesRouter from './routes/categories'
 import healthRouter from './routes/health'
 import relatedSystemsRouter from './routes/relatedSystems'
+import staffRouter from './routes/staff'
 import ticketsRouter from './routes/tickets'
 
 const app = express()
@@ -25,5 +26,6 @@ app.use('/api', relatedSystemsRouter)
 app.use('/api', ticketsRouter)
 app.use('/api', attachmentsRouter)
 app.use('/api', authRouter)
+app.use('/api', staffRouter)
 
 export default app

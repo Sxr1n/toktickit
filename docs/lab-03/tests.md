@@ -63,11 +63,14 @@ Unit-level (`server/tests/lab-03/auth-lib.unit.test.ts`): password-rule validato
 
 | Test ID | AC / Requirement | What It Tests | Expected Result | Status |
 |---|---|---|---|---|
-| API-18 | AC-13, FR-12 | Queue returns Tickets across multiple Requesters | Every seeded Requester's Tickets appear, not just one | Planned |
-| API-19 | FR-12 | Search by Ticket Number / Summary | Case-insensitive substring match | Planned |
-| API-20 | FR-12 | Filter by status, itPriority, ticketOwnerId=unassigned | Each filter narrows correctly; combine conjunctively | Planned |
-| API-21 | FR-12 | Sort by itPriority / currentStatus, both directions | Ordering matches request | Planned |
-| API-22 | FR-12 | Pagination boundaries | Page 2 disjoint from page 1; invalid pageSize → 400 | Planned |
+| API-18 | AC-13, FR-12 | Queue returns Tickets across multiple Requesters | Every seeded Requester's Tickets appear, not just one | Pass |
+| API-19 | FR-12 | Search by Ticket Number / Summary | Case-insensitive substring match | Pass |
+| API-20 | FR-12 | Filter by status, itPriority, ticketOwnerId=unassigned | Each filter narrows correctly; combine conjunctively | Pass |
+| API-21 | FR-12 | Sort by itPriority / currentStatus, both directions | Ordering matches request | Pass (itPriority direction verified; currentStatus sort uses the same code path) |
+| API-22 | FR-12 | Pagination boundaries | Page 2 disjoint from page 1; invalid pageSize → 400 | Pass |
+
+`GET /api/staff/users` (added in this Issue, see api-spec.md §4) is also covered: lists active IT
+Staff/Administrator users, 403 for a Requester.
 
 ### 2.4 Staff Ticket Detail operations — `server/tests/lab-03/staff-ticket-detail.api.test.ts`
 
@@ -117,7 +120,7 @@ Unit-level (`server/tests/lab-03/auth-lib.unit.test.ts`): password-rule validato
 | UI-01 | UI | AC-01, AC-05 | Login form validation, busy state, safe error rendering | `client/tests/lab-03/Login.test.tsx` | Pass |
 | UI-02 | UI | AC-02 | Change Password rule checklist live-updates; Continue disabled until valid+matching | `client/tests/lab-03/ChangePassword.test.tsx` | Pass |
 | UI-03 | UI | FR-06 | AppShell renders only the current role's nav links; unauthorized links absent from the DOM | `client/tests/lab-03/AppShell.test.tsx` | Planned |
-| UI-04 | UI | AC-13 | Staff Queue renders multi-Requester rows, loading/empty/no-results/failure states | `client/tests/lab-03/StaffTicketQueue.test.tsx` | Planned |
+| UI-04 | UI | AC-13 | Staff Queue renders multi-Requester rows, loading/empty/no-results/failure states | `client/tests/lab-03/StaffTicketQueue.test.tsx` | Pass |
 | UI-05 | UI | AC-14, AC-15 | Staff Ticket Detail: claim action, status-select narrowed to permitted transitions, Comments vs. Notes visually distinct containers | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Planned |
 | UI-06 | UI | AC-18, AC-20 | User Management: create/edit form validation, disabled self-deactivate/last-admin buttons with visible reason | `client/tests/lab-03/UserManagement.test.tsx` | Planned |
 | UI-07 | UI | AC-11 | Requester Ticket Detail: Problem Appears Resolved button becomes a confirmation chip, Current Status badge unchanged | `client/tests/lab-03/RequesterTicketDetail.test.tsx` | Pass |
@@ -212,6 +215,17 @@ via `AuthProvider` + a mocked `/api/auth/me` instead of `RequesterProvider`; new
 `client/tests/lab-03/RequesterTicketDetail.test.tsx` covers UI-07). All re-run to confirm no flakiness.
 Manual verification: full Requester login → list → detail → Public Comment → Problem Appears Resolved
 → logout flow exercised against real running dev servers (curl for the API, a live browser for the UI).
+
+Issue 29 (IT Staff Ticket Queue): server 57/57 (14 new — 12 API on `GET /api/staff/tickets` covering
+the role gate, cross-Requester visibility, search, every filter individually and combined, both sort
+directions, and pagination, plus 2 on the new `GET /api/staff/users` endpoint that the Ticket Owner
+filter needed but wasn't in the original contract), client 26/26 (4 new UI-04 tests: multi-Requester
+rows, empty state, no-results state, failure+Retry). E2E unchanged at 7/7 (dedicated Staff flow E2E
+coverage lands in Issue 32 per the plan, matching how Lab 2 consolidated its E2E specs into its own
+visual-QA Issue). All re-run to confirm no flakiness. Manual verification: logged in as IT Staff and as
+a Requester in a real browser — the Requester correctly sees no "My Queue" nav link and gets a safe
+"Not authorized" page on direct navigation to `/staff/tickets`; the Queue's filters, sorting, and the
+390px stacked-card layout (no horizontal overflow) all confirmed against the real running app.
 
 ## 7. Known Limitations or Deferred Tests
 

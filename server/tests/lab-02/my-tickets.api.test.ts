@@ -35,6 +35,7 @@ beforeAll(async () => {
         summary: t.summary,
         description: 'Seed description for my-tickets test, long enough to pass validation.',
         requestedPriority: 'MEDIUM',
+        itPriority: 'MEDIUM',
       },
     })
   }

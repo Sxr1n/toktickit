@@ -169,6 +169,7 @@ router.post('/tickets', ...requireRequesterAuth, async (req, res) => {
           summary,
           description,
           requestedPriority: requestedPriority as 'LOW' | 'MEDIUM' | 'HIGH',
+          itPriority: requestedPriority as 'LOW' | 'MEDIUM' | 'HIGH', // BR-18: initialized from Requested Priority
         },
       })
       const ticketNumber = `TKT-${created.createdAt.getFullYear()}-${String(created.id).padStart(6, '0')}`

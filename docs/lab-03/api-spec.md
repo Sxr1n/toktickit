@@ -90,6 +90,14 @@ Query parameters: `search` (matches Ticket Number or Summary, case-insensitive s
   `{ id, ticketNumber, summary, categoryName, requestedPriority, itPriority, currentStatus, ticketOwnerId, ticketOwnerName, requesterName, createdAt }`.
 - 400 `VALIDATION_FAILED` — invalid `status`/`itPriority`/`sortBy`/`pageSize` value.
 
+### GET /api/staff/users
+
+Added in Issue 29, not in the original contract: the Ticket Owner filter (ui-spec.md §7) and the
+Ticket Owner/reassign select (ui-spec.md §8) both need to list real active IT Staff/Administrator
+users by name, not just the literal `unassigned` value.
+
+- 200 `[{ id, name, role }, ...]` — every active `IT_STAFF`/`ADMINISTRATOR` user, ordered by name.
+
 ### GET /api/staff/tickets/:id
 
 - 200 full Ticket detail including Requester info, Category, Related System, both priorities, status,
