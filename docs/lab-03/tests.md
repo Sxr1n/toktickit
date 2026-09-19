@@ -153,8 +153,8 @@ Both landed in one file (`e2e/lab-03/authentication.spec.ts`) rather than the tw
 planned, since AppShell/nav are not yet auth-aware (Issue 28) — there is no Logout button to click
 yet, so full "authenticated shell → logout" browser coverage is deferred to Issue 28; logout's
 server-side invalidation is already covered directly by API-06.
-| E2E-03 | AC-13, AC-14, AC-15, AC-17 | IT Staff logs in, claims a Ticket from the Queue, sets IT Priority, transitions status, posts a Public Comment and an Internal Note | All actions visible on reload | `staff-ticket-flow.spec.ts` | Planned |
-| E2E-04 | AC-18, AC-19 | Administrator creates a user, that user logs in and is forced through Change Password | Full loop succeeds | `user-administration.spec.ts` | Planned |
+| E2E-03 | AC-13, AC-14, AC-15, AC-17 | IT Staff logs in, claims a Ticket from the Queue, sets IT Priority, transitions status, posts a Public Comment and an Internal Note | All actions visible on reload | `staff-ticket-flow.spec.ts` | Pass |
+| E2E-04 | AC-18, AC-19 | Administrator creates a user, that user logs in and is forced through Change Password | Full loop succeeds | `user-administration.spec.ts` | Pass |
 
 ## 3. Acceptance-Criterion Traceability
 
@@ -187,16 +187,25 @@ server-side invalidation is already covered directly by API-06.
 ## 4. Responsive and Visual Checklist
 
 Executed at 1440×900, 820×1024, 390×844 against `ui-spec.md` §12 and the screenshots in
-`artifacts/lab-03/screenshots/`, comparing against the spec rather than memory. Recorded here as
-`Planned` until Issue 7 (Visual QA) runs it for real.
+`artifacts/lab-03/screenshots/`, comparing against the spec rather than memory (each screenshot was
+actually opened and inspected, not just asserted not to overflow).
 
 | Screen | 1440×900 | 820×1024 | 390×844 |
 |---|---|---|---|
-| Login | Planned | Planned | Planned |
-| Change Password | Planned | Planned | Planned |
-| Staff Ticket Queue | Planned | Planned | Planned |
-| Staff Ticket Detail | Planned | Planned | Planned |
-| User Management | Planned | Planned | Planned |
+| Login | Pass | Pass | Pass |
+| Change Password | Pass | Pass | Pass |
+| Staff Ticket Queue | Pass | Pass | Pass |
+| Staff Ticket Detail | Pass | Pass | Pass |
+| User Management | Pass (found and fixed a real bug — see §6) | Pass | Pass |
+
+Public Comments vs. Internal Notes render as two visually distinct containers at every width
+checked (light green vs. warm amber tint), matching `ui-spec.md` §12's explicit requirement; at
+tablet width they sit side-by-side ("two-column at tablet" per §10), stacking to one column only at
+mobile. Editable vs. read-only fields on Staff Ticket Detail remain visually distinguishable
+(white/bordered selects against the read-only card) at every width. No clipping, overlap, or
+horizontal page scrolling found on any new screen at any breakpoint, confirmed both by
+`expectNoHorizontalOverflow` assertions in the E2E specs and by visual inspection of every
+screenshot.
 
 ## 5. Test Commands
 
@@ -315,20 +324,67 @@ message survives the panel closing; bug 2: a new regression test that narrows th
 search before editing and asserts the checkbox stays enabled; bug 3 is a layout fix without direct
 unit-test coverage, verified manually).
 
+Issue 32 (Visual QA, responsive checks, and E2E): server/client suites unchanged (this Issue added
+no new server/client code beyond one UI layout fix — see below); E2E 8/8 new specs and assertions
+across all three viewport projects: 2 new functional specs
+(`staff-ticket-flow.spec.ts` — E2E-03, `user-administration.spec.ts` — E2E-04) plus a new
+`e2e/lab-03/visual-checklist.spec.ts` that captures and asserts no horizontal overflow on Login,
+Change Password, Staff Ticket Queue, Staff Ticket Detail, and User Management across
+1440×900/820×1024/390×844 (15 screenshots total, all actually opened and visually inspected, not
+just overflow-asserted). Full suite (Lab 1+2+3) re-run twice back-to-back with no manual DB
+intervention between runs to confirm the throwaway-account fix below actually holds — 12/12 both
+times (one unrelated transient Chromium worker crash on an earlier attempt, confirmed environmental
+by an immediate clean retry).
+
+**Found and fixed two real issues during this pass:**
+1. **A real UI bug**, caught by actually looking at the User Management screenshot rather than just
+   checking `scrollWidth`: the user list table's Role/Status/Edit columns were being pushed out of
+   the visible `col-lg-5` column by long email addresses. The `.table-responsive` wrapper added in
+   Issue 31 correctly stopped this from overflowing the *page*, but that just meant the missing
+   columns were silently scrolled off screen *inside* the table's own container instead — no page
+   scrollbar to notice, no error, just Role/Status/Edit invisible without knowing to scroll the tiny
+   inner container. Fixed with `table-layout: fixed` + explicit column widths + `text-truncate` on
+   the Name/Email cells (with a `title` tooltip for the full value), so all five columns always fit.
+   A first attempt still let the "ADMINISTRATOR" role badge overlap the Status column; widened the
+   Role column and shrank the badge font-size until it genuinely fit at every viewport, verified by
+   screenshot each time rather than assumed.
+2. **A real, repeatedly-hit E2E flakiness source**, described in detail in §7 below: every seeded
+   Requester's `mustChangePassword` flag gets permanently cleared the first time any spec drives it
+   through a real browser login+change, and this is not scoped to one "unlucky" shared fixture — it
+   silently broke a new spec in this very Issue when a different spec had already consumed the same
+   account moments earlier in the same full-suite run. Fixed at the source for every Lab 3 spec by
+   creating dedicated throwaway accounts via the Issue 31 Administrator API instead of reusing seeded
+   ones, verified by running the full suite twice consecutively with zero manual database
+   intervention in between.
+
 ## 7. Known Limitations or Deferred Tests
 
 - Session-expiry (BR-11, API-07) is tested by issuing a token with a manually-set past expiry rather
   than waiting out a real 8-hour window.
 - Actions Taken, formal SLA/escalation, and notification tests are out of scope for Lab 3 (deferred to
   Lab 4 per the labsheet).
-- `e2e/lab-03/authentication.spec.ts`'s first-login test necessarily consumes one seeded Requester's
-  (Jennifer Anderson's) temporary-password state, since no account-creation capability exists yet to
-  give it a disposable one (that lands in Issue 31, Administrator User Management). The test restores
-  her *password* but not her `mustChangePassword: true` flag, since a successful change-password call
-  always clears that flag by design (BR-02) — there is no API yet to set it back without also changing
-  the password again. Re-run `npx prisma db seed` between an E2E run and a server-test run in the same
-  session; `server/tests/lab-03/auth.api.test.ts` itself no longer depends on this shared fixture
-  (it uses its own dedicated throwaway user) precisely because of this discovered fragility.
+- (Resolved in Issue 32) `e2e/lab-03/authentication.spec.ts`'s first-login test used to consume the
+  seeded Jennifer Anderson account's temporary-password state, since no account-creation capability
+  existed yet to give it a disposable one. Once Issue 31 added `POST /api/admin/users`, this was
+  retrofitted to create a dedicated throwaway Requester instead (mirroring the pattern already used
+  server-side in `auth.api.test.ts`) — no seeded account is consumed by this spec any more. The same
+  pattern is used by every new Lab 3 spec added in Issue 32
+  (`staff-ticket-flow.spec.ts`, `user-administration.spec.ts`, `visual-checklist.spec.ts`'s Change
+  Password screenshot), since this turned out to be a real, repeatedly-hit source of flakiness: every
+  seeded Requester's `mustChangePassword` flag gets permanently cleared the first time ANY spec
+  drives it through a real browser login+change (not just the shared fixture originally suspected),
+  and reseeding cannot restore it once the password is for-real changed (`prisma db seed` only
+  backfills a placeholder password, never overwrites a real one). This was caught directly during
+  this Issue: an early version of the new `visual-checklist.spec.ts` reused `sarah.wilson`, and a
+  full-suite run failed because Lab 2's `requester-ticket-flow.spec.ts` had already consumed her
+  moments earlier in the same run.
+- Lab 2's own specs (`e2e/lab-02/requester-ticket-flow.spec.ts`, `visual-checklist.spec.ts`) still use
+  the older restore-via-API-call approach against shared seeded Requesters (Michael Brown, Sarah
+  Wilson, David Lee) rather than throwaway accounts, since retrofitting already-passing Lab 2 specs
+  was out of scope for this Issue. In a full-suite run, run them before any Lab 3 spec that also
+  needs a seeded Requester's `mustChangePassword: true` state (or just re-run `npx prisma db seed`
+  and manually reset `passwordHash`/`mustChangePassword` for any account a prior run touched, as this
+  session repeatedly had to do) if you hit the same flakiness outside the now-fixed Lab 3 specs.
 - Load/performance testing of the Staff Queue at large Ticket counts is out of scope for this course lab.
 - Lab 2's `MyTickets.test.tsx` previously had a test ("reloads the list to the newly selected Requester
   after switching") that exercised the dev-only `RequesterContext.changeRequester()` escape hatch. That

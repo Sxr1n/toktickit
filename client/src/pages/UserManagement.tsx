@@ -26,7 +26,7 @@ type PanelMode = 'create' | 'edit' | null
 
 function RoleBadge({ role }: { role: AdminUser['role'] }) {
   return (
-    <span className="badge" style={{ backgroundColor: '#EAF6EF', color: '#006B3C' }}>
+    <span className="badge" style={{ backgroundColor: '#EAF6EF', color: '#006B3C', fontSize: '0.7rem' }}>
       {role}
     </span>
   )
@@ -271,21 +271,28 @@ export default function UserManagement() {
 
           {listState === 'loaded' && visibleUsers.length > 0 && (
             <div className="table-responsive">
-              <table className="table">
+              {/* table-layout: fixed + explicit column widths so Role/Status/Edit stay visible
+                  without a horizontal scroll a user would have to discover -- long names/emails
+                  truncate instead of pushing the later columns out of view. */}
+              <table className="table" style={{ tableLayout: 'fixed', width: '100%' }}>
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th></th>
+                    <th style={{ width: '18%' }}>Name</th>
+                    <th style={{ width: '20%' }}>Email</th>
+                    <th style={{ width: '31%' }}>Role</th>
+                    <th style={{ width: '16%' }}>Status</th>
+                    <th style={{ width: '15%' }}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {visibleUsers.map((u) => (
                     <tr key={u.id}>
-                      <td>{u.name}</td>
-                      <td>{u.email}</td>
+                      <td className="text-truncate" title={u.name}>
+                        {u.name}
+                      </td>
+                      <td className="text-truncate" title={u.email}>
+                        {u.email}
+                      </td>
                       <td>
                         <RoleBadge role={u.role} />
                       </td>
