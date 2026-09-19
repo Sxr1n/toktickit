@@ -165,21 +165,64 @@ describe('GET /api/staff/tickets - sort (API-21)', () => {
     const descPriorities = desc.body.items.map((t: { itPriority: string }) => t.itPriority)
     expect(ascPriorities).toEqual([...descPriorities].reverse())
   })
+
+  it('sorts by currentStatus ascending and descending', async () => {
+    const asc = await request(app)
+      .get('/api/staff/tickets')
+      .query({ search: MARKER, sortBy: 'currentStatus', sortDir: 'asc', pageSize: 10 })
+      .set('Cookie', staffCookie)
+    const desc = await request(app)
+      .get('/api/staff/tickets')
+      .query({ search: MARKER, sortBy: 'currentStatus', sortDir: 'desc', pageSize: 10 })
+      .set('Cookie', staffCookie)
+
+    expect(asc.status).toBe(200)
+    expect(desc.status).toBe(200)
+    const ascStatuses = asc.body.items.map((t: { currentStatus: string }) => t.currentStatus)
+    const descStatuses = desc.body.items.map((t: { currentStatus: string }) => t.currentStatus)
+    expect(ascStatuses).toEqual([...descStatuses].reverse())
+    // Sanity check this isn't vacuously true because every seeded status is identical.
+    expect(new Set(ascStatuses).size).toBeGreaterThan(1)
+  })
 })
 
 describe('GET /api/staff/tickets - pagination (API-22)', () => {
-  it('returns disjoint results across pages', async () => {
+  it('returns exactly 10 items on page 1 and the remaining 1 on page 2, with no overlap', async () => {
+    // The MARKER-tagged set only has 3 tickets, which can never actually exercise a page boundary
+    // at pageSize=10 (flagged in PR #38 review). Seed a dedicated 11-ticket set instead.
+    const pageMarker = `QueuePage${Date.now()}`
+    await Promise.all(
+      Array.from({ length: 11 }, (_, i) =>
+        prisma.ticket.create({
+          data: {
+            ticketNumber: `SEED-QUEUE-PAGE-${Math.random().toString(36).slice(2, 8)}`,
+            requesterId: requesterAId,
+            categoryId,
+            relatedSystemId,
+            summary: `${pageMarker} ticket ${i}`,
+            description: 'Seed ticket used to exercise Staff Ticket Queue pagination boundaries.',
+            requestedPriority: 'MEDIUM',
+            itPriority: 'MEDIUM',
+            currentStatus: 'NEW',
+          },
+        }),
+      ),
+    )
+
     const page1 = await request(app)
       .get('/api/staff/tickets')
-      .query({ search: MARKER, page: 1, pageSize: 10 })
+      .query({ search: pageMarker, page: 1, pageSize: 10 })
       .set('Cookie', staffCookie)
     const page2 = await request(app)
       .get('/api/staff/tickets')
-      .query({ search: MARKER, page: 2, pageSize: 10 })
+      .query({ search: pageMarker, page: 2, pageSize: 10 })
       .set('Cookie', staffCookie)
 
     expect(page1.status).toBe(200)
     expect(page2.status).toBe(200)
+    expect(page1.body.items).toHaveLength(10)
+    expect(page2.body.items).toHaveLength(1)
+    expect(page1.body.totalItems).toBe(11)
     const page1Ids = page1.body.items.map((t: { id: number }) => t.id)
     const page2Ids = page2.body.items.map((t: { id: number }) => t.id)
     expect(page1Ids.some((id: number) => page2Ids.includes(id))).toBe(false)

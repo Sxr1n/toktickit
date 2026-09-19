@@ -95,6 +95,7 @@ model Ticket {
   @@index([requesterId])
   @@index([categoryId])
   @@index([ticketOwnerId])
+  @@index([currentStatus])
 }
 
 model PublicComment {

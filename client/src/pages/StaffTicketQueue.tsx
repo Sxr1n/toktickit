@@ -50,10 +50,10 @@ const PRIORITY_STYLE: Record<string, { bg: string; color: string }> = {
   HIGH: { bg: '#F8D7DA', color: '#8B0000' },
 }
 
-function PriorityBadge({ priority }: { priority: string }) {
+function PriorityBadge({ priority, label }: { priority: string; label?: string }) {
   const style = PRIORITY_STYLE[priority] ?? PRIORITY_STYLE.LOW
   return (
-    <span className="badge" style={{ backgroundColor: style.bg, color: style.color }}>
+    <span className="badge" style={{ backgroundColor: style.bg, color: style.color }} aria-label={label}>
       {priority}
     </span>
   )
@@ -295,9 +295,15 @@ export default function StaffTicketQueue() {
                 <div>{t.summary}</div>
                 <div className="d-flex justify-content-between mt-1">
                   <span>{t.categoryName}</span>
-                  <div className="d-flex gap-1">
-                    <PriorityBadge priority={t.requestedPriority} />
-                    <PriorityBadge priority={t.itPriority} />
+                  <div className="d-flex gap-2 align-items-center">
+                    <span className="text-muted small" aria-hidden="true">
+                      Req.
+                    </span>
+                    <PriorityBadge priority={t.requestedPriority} label={`Requested Priority: ${t.requestedPriority}`} />
+                    <span className="text-muted small" aria-hidden="true">
+                      IT
+                    </span>
+                    <PriorityBadge priority={t.itPriority} label={`IT Priority: ${t.itPriority}`} />
                   </div>
                 </div>
                 <div className="d-flex justify-content-between mt-1">

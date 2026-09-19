@@ -127,8 +127,83 @@ deactivating a *different* active Administrator while another remains active -- 
 
 | Test ID | AC / Requirement | What It Tests | Expected Result | Status |
 |---|---|---|---|---|
-| API-42 | AC-09, BR-35 | Full Lab 1 + Lab 2 suites re-run unmodified after the `User` migration, on a database built via `prisma migrate deploy` + seed from empty | All pass | Planned |
-| API-43 | AC-09 | A pre-migration seeded Requester's pre-existing Ticket | Still present, still owned by that Requester, under the new `User` table | Planned |
+| API-42 | AC-09, BR-35 | Full Lab 1 + Lab 2 suites re-run unmodified after the `User` migration, on a database built via `prisma migrate deploy` + seed from empty | All pass | Pass |
+| API-43 | AC-09 | A pre-migration seeded Requester's pre-existing Ticket | Still present, still owned by that Requester, under the new `User` table | Pass (verified manually, not automated — see transcript below) |
+
+**API-42 evidence.** Torn down and rebuilt the Docker Postgres volume from nothing
+(`docker compose down -v && up -d`), applied all 10 migrations from empty via
+`npx prisma migrate deploy` (all succeeded, listed in order — see `docker-compose.yml`'s README
+section for the exact commands), seeded, then ran the full `server` suite (14 files, 102 tests, all
+Lab 1/2/3), the full `client` suite (11 files, 43 tests), and the full Playwright suite (12 tests
+across 3 viewport projects) against that freshly-built database. All passed. `migration.api.test.ts`
+additionally exercises the full cross-lab FK chain (Category/RelatedSystem → User/Ticket →
+PublicComment/InternalNote, spanning every lab's schema additions) through the live API in one
+request sequence, as a more direct regression signal than re-running already-covered individual
+routes under a new name.
+
+**API-43 evidence.** Proving this needs the actual *pre*-Lab-3 schema to exist with real data under
+it, then the Lab 3 migrations applied on top — not reproducible inside a normal Vitest run against
+the app's one shared `public` schema. Verified manually instead, using an isolated
+`migration_check` schema on the same Postgres instance so the app's real working database was never
+touched:
+
+```
+$ docker exec toktickit-postgres psql -U postgres -d toktickit -c "CREATE SCHEMA migration_check;"
+CREATE SCHEMA
+
+# Applied the 5 pre-Lab-3 migrations (Category, RequesterUser, Ticket/RelatedSystem, Attachment,
+# cascade fix) with search_path set to the isolated schema:
+$ (echo "SET search_path TO migration_check;"; cat <5 pre-Lab-3 migration.sql files>) \
+    | docker exec -i toktickit-postgres psql -U postgres -d toktickit
+SET / CREATE TABLE / CREATE INDEX / ... (all succeeded)
+
+# Inserted a Category, RelatedSystem, RequesterUser, and a Ticket owned by that Requester --
+# simulating real pre-Lab-3 data:
+INSERT INTO "RequesterUser" (name, email) VALUES ('Pre-Migration Requester', 'pre.migration.requester@example.com');
+INSERT INTO "Ticket" (..., "requesterId", ...) VALUES ('TKT-2026-999999', <that id>, ...);
+
+ id |          name           |                email
+----+-------------------------+-------------------------------------
+  1 | Pre-Migration Requester | pre.migration.requester@example.com
+
+ id |  ticketNumber   | requesterId |                   summary
+----+-----------------+-------------+----------------------------------------------
+  1 | TKT-2026-999999 |           1 | Pre-migration Ticket for API-43 verification
+
+# Applied the 5 Lab 3 migrations on top, in the SAME schema (includes the User-rename migration):
+$ (echo "SET search_path TO migration_check;"; cat <5 Lab 3 migration.sql files>) \
+    | docker exec -i toktickit-postgres psql -U postgres -d toktickit
+... ALTER TABLE ... UPDATE 1 ... (all succeeded -- "UPDATE 1" is the itPriority backfill,
+    correctly touching exactly the one pre-existing Ticket row)
+
+# Verified the result:
+SELECT id, name, email, role, "mustChangePassword", "isActive" FROM "User"
+  WHERE email = 'pre.migration.requester@example.com';
+ id |          name           |                email                |   role    | mustChangePassword | isActive
+----+-------------------------+-------------------------------------+-----------+--------------------+----------
+  1 | Pre-Migration Requester | pre.migration.requester@example.com | REQUESTER | f                  | t
+
+SELECT id, "ticketNumber", "requesterId", summary, "itPriority", "currentStatus" FROM "Ticket"
+  WHERE "ticketNumber" = 'TKT-2026-999999';
+ id |  ticketNumber   | requesterId |                   summary                    | itPriority | currentStatus
+----+-----------------+-------------+----------------------------------------------+------------+---------------
+  1 | TKT-2026-999999 |           1 | Pre-migration Ticket for API-43 verification | MEDIUM     | NEW
+
+# Confirmed the FK still resolves correctly post-rename:
+SELECT t."ticketNumber", u.name, u.email FROM "Ticket" t JOIN "User" u ON t."requesterId" = u.id
+  WHERE t."ticketNumber" = 'TKT-2026-999999';
+ ticketNumber   |     requester_name      |           requester_email
+-----------------+-------------------------+-------------------------------------
+ TKT-2026-999999 | Pre-Migration Requester | pre.migration.requester@example.com
+
+$ docker exec toktickit-postgres psql -U postgres -d toktickit -c "DROP SCHEMA migration_check CASCADE;"
+DROP SCHEMA
+```
+
+Result: same row id preserved on both the renamed `User` table and the `Ticket` table, all data
+intact, the foreign key still resolves, and every new Lab 3 column defaulted/backfilled correctly
+(`itPriority` backfilled from `requestedPriority`, `role` defaulted to `REQUESTER`,
+`requesterConfirmedResolved` defaulted to `false`).
 
 ### 2.8 UI components
 
@@ -136,7 +211,7 @@ deactivating a *different* active Administrator while another remains active -- 
 |---|---|---|---|---|---|
 | UI-01 | UI | AC-01, AC-05 | Login form validation, busy state, safe error rendering | `client/tests/lab-03/Login.test.tsx` | Pass |
 | UI-02 | UI | AC-02 | Change Password rule checklist live-updates; Continue disabled until valid+matching | `client/tests/lab-03/ChangePassword.test.tsx` | Pass |
-| UI-03 | UI | FR-06 | AppShell renders only the current role's nav links; unauthorized links absent from the DOM | `client/tests/lab-03/AppShell.test.tsx` | Planned |
+| UI-03 | UI | FR-06 | AppShell renders only the current role's nav links; unauthorized links absent from the DOM | `client/tests/lab-03/AppShell.test.tsx` | Pass (gap caught during Issue 33 final QA -- this test was planned in Issue 26 but never written across Issues 27-32) |
 | UI-04 | UI | AC-13 | Staff Queue renders multi-Requester rows, loading/empty/no-results/failure states | `client/tests/lab-03/StaffTicketQueue.test.tsx` | Pass |
 | UI-05 | UI | AC-14, AC-15 | Staff Ticket Detail: claim action, status-select narrowed to permitted transitions, Comments vs. Notes visually distinct containers | `client/tests/lab-03/StaffTicketDetail.test.tsx` | Pass |
 | UI-06 | UI | AC-18, AC-20 | User Management: create/edit form validation, disabled self-deactivate/last-admin buttons with visible reason | `client/tests/lab-03/UserManagement.test.tsx` | Pass |
@@ -357,6 +432,80 @@ by an immediate clean retry).
    ones, verified by running the full suite twice consecutively with zero manual database
    intervention in between.
 
+Issue 33 (Sprint 3 release integration and final QA): server 108/108 (5 new — 1 full-chain
+migration smoke test, 1 atomic-safety concurrency regression, 4 authorization tests for every
+Admin mutation endpoint), client 43/43 (4 new — `AppShell.test.tsx`, UI-03, a gap from Issue 26
+never actually built across Issues 27-32, caught here). E2E 12/12, run **twice consecutively with
+zero manual database intervention between runs** — the Lab 2 specs were retrofitted to the
+throwaway-account pattern too (see below), so the whole suite is now fully self-contained.
+
+This Issue's "final QA" mandate included going back through every real reviewer comment left on
+Lab 3 PRs and checking whether it was actually acted on, not just replied to with "thank you." That
+audit found substantial unaddressed feedback:
+
+- **PR #40 [P1] Last-Administrator check was not atomic** (real bug): the count-then-update in
+  `PATCH /api/admin/users/:id` were two separate database operations, so two concurrent requests
+  could each observe "another active Administrator still exists" and both succeed, leaving zero.
+  Fixed by wrapping the check and the write in one Serializable transaction. Verified the
+  vulnerability was real (not a theoretical concern) by temporarily reverting to the old
+  Read-Committed/non-atomic shape with an injected delay: the race reproduced immediately (2/2
+  concurrent requests succeeded). With the fix, 5/5 repeated runs correctly rejected one side. A
+  permanent regression test now exercises this directly against Postgres (see
+  `users-admin.api.test.ts`).
+- **PR #40 [P2] Missing authorization tests on Admin mutations**: `POST`, `PATCH`, and
+  reset-password each only had role-gate coverage via the shared `requireAdminAuth` middleware, no
+  direct per-endpoint test. Added 4 tests covering unauthenticated/Requester/IT_STAFF on every
+  mutation endpoint.
+- **PR #37/#39 review "message" field gap**: `docs/lab-03/api-spec.md` §1 requires every non-2xx
+  response to include `error.message`, but 22 structured `NOT_FOUND` responses across
+  `staff.ts`/`admin.ts`/`tickets.ts` were missing it. Fixed all of them.
+- **PR #38 [P2] No index on `Ticket.currentStatus`**, despite the Queue filtering and sorting by
+  it. Added (migration `20260919160000_add_ticket_status_index`).
+- **PR #38 [P2] `currentStatus` sort (API-21) only asserted `itPriority`** despite both being in
+  scope. Added an explicit `currentStatus` ascending/descending test.
+- **PR #38 [P2] Pagination test (API-22) used only 3 tickets against `pageSize=10`**, so page 2 was
+  always trivially empty — never actually exercised a page boundary. Rewrote with a dedicated
+  11-ticket seed asserting a real 10/1 split.
+- **PR #38 [P2] `/api/staff/users` had no error handling** unlike its sibling routes. Wrapped in
+  the same try/catch pattern.
+- **PR #38 [non-blocking] Mobile priority badges were ambiguous** with Requested Priority and IT
+  Priority shown side-by-side with no label. Added "Req."/"IT" text labels plus `aria-label`s.
+- **PR #39 [P1] Documented contract said Staff Ticket Detail embeds Public Comments/Internal
+  Notes**, but the implementation correctly fetches them separately (reusing the same Public
+  Comments endpoint the Requester view already uses, rather than duplicating it inline). Chose to
+  fix the documentation rather than the working design — updated `api-spec.md` to explicitly
+  describe the split and why.
+- **PR #34 bcrypt cost factor**: not previously documented. Added to D-02 (cost factor 10, the
+  library default). Login rate-limiting, also raised in that review, is confirmed out of scope for
+  this course lab and noted as such rather than left silently unaddressed.
+- **PR #38 "`/staff/tickets/:id` links to a route that doesn't exist yet"**: already resolved by
+  the time Issue 30 shipped that route; no action needed, noted as resolved in `reviewer.md`.
+- **PR #36/#37 "approved Lab 3 Contract requires opaque Session tokens, CSRF headers, Argon2id,
+  12-128 char passwords, a `confirmPassword` field, 204 on logout"**: investigated and found this
+  does not correspond to anything in `docs/lab-03/specification.md` or `api-spec.md` as actually
+  written and merged via PR #34 — this repo's real, approved contract explicitly documents and
+  justifies JWT-in-cookie with `SameSite=Lax` (D-01), `bcryptjs` (D-02), and the exact BR-06/07/10/11
+  behavior that was implemented. The PR #36 migration-safety claim ("RequesterUser already has
+  updatedAt, adding it again will fail") was also checked directly against the real Lab 2 migration
+  and found factually incorrect for this repo (`RequesterUser` never had that column before Lab 3
+  added it) — independently reconfirmed by this Issue's own API-43 migration replay, which applies
+  that exact migration to a reconstructed pre-Lab-3 table with no error. Recorded transparently in
+  `reviewer.md` rather than silently ignored, since a real review deserves a real answer even when
+  the answer is "this appears to check against a different contract than the one this repo actually
+  approved."
+- **PR #35 "please run the Lab 2 E2E specs directly on this PR's own branch, not just cite the Lab
+  3 branch as equivalent evidence"**: could not be done retroactively (the PR already merged and
+  `main` has moved on substantially since), but the underlying concern — an unverified claim of
+  equivalence — is addressed going forward: every PR from Issue 27 onward in this lab actually ran
+  its own test suite on its own branch before merging, and this Issue's evidence trail (e.g. the
+  fresh-database API-42 run) is real command output, not inference.
+
+Also fixed at the source in this Issue: the two Lab 2 E2E specs
+(`requester-ticket-flow.spec.ts`, `visual-checklist.spec.ts`) were retrofitted from the
+restore-via-API-call pattern to the same dedicated-throwaway-account pattern Lab 3's specs use,
+eliminating both the PR #37-flagged "cleanup silently swallows failures" issue and the underlying
+password-drift class of bug entirely, for the whole suite.
+
 ## 7. Known Limitations or Deferred Tests
 
 - Session-expiry (BR-11, API-07) is tested by issuing a token with a manually-set past expiry rather
@@ -378,13 +527,13 @@ by an immediate clean retry).
   this Issue: an early version of the new `visual-checklist.spec.ts` reused `sarah.wilson`, and a
   full-suite run failed because Lab 2's `requester-ticket-flow.spec.ts` had already consumed her
   moments earlier in the same run.
-- Lab 2's own specs (`e2e/lab-02/requester-ticket-flow.spec.ts`, `visual-checklist.spec.ts`) still use
-  the older restore-via-API-call approach against shared seeded Requesters (Michael Brown, Sarah
-  Wilson, David Lee) rather than throwaway accounts, since retrofitting already-passing Lab 2 specs
-  was out of scope for this Issue. In a full-suite run, run them before any Lab 3 spec that also
-  needs a seeded Requester's `mustChangePassword: true` state (or just re-run `npx prisma db seed`
-  and manually reset `passwordHash`/`mustChangePassword` for any account a prior run touched, as this
-  session repeatedly had to do) if you hit the same flakiness outside the now-fixed Lab 3 specs.
+- (Resolved in Issue 33) Lab 2's own specs (`e2e/lab-02/requester-ticket-flow.spec.ts`,
+  `visual-checklist.spec.ts`) used the older restore-via-API-call approach against shared seeded
+  Requesters until this Issue retrofitted them to the same dedicated-throwaway-account pattern as
+  Lab 3's specs — both to resolve the password-drift class of bug for the whole suite (not just Lab
+  3) and to act on PR #37's review flagging that the old restore helper's `.catch(() => {})`
+  silently swallowed cleanup failures. Verified by running the full 12-test suite twice
+  consecutively with zero manual database intervention between runs.
 - Load/performance testing of the Staff Queue at large Ticket counts is out of scope for this course lab.
 - Lab 2's `MyTickets.test.tsx` previously had a test ("reloads the list to the newly selected Requester
   after switching") that exercised the dev-only `RequesterContext.changeRequester()` escape hatch. That

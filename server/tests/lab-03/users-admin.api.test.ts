@@ -49,6 +49,70 @@ describe('GET /api/admin/users - role gate', () => {
   })
 })
 
+describe('Authorization on every Admin mutation endpoint (PR #40 review)', () => {
+  // GET /api/admin/users' role gate is covered above; POST, PATCH, and reset-password each get
+  // their own direct unauthenticated/non-Administrator checks here too, so a future route-wiring
+  // regression can't silently leave a mutation endpoint unprotected while the suite still passes.
+  it('POST /api/admin/users rejects unauthenticated (401) and Requester (403)', async () => {
+    const body = { name: 'X', email: `unauth-post-${Date.now()}@example.com`, role: 'REQUESTER', isActive: true, initialPassword: DEV_PASSWORD }
+
+    const unauth = await request(app).post('/api/admin/users').send(body)
+    expect(unauth.status).toBe(401)
+
+    const forbidden = await request(app).post('/api/admin/users').set('Cookie', requesterCookie).send(body)
+    expect(forbidden.status).toBe(403)
+  })
+
+  it('PATCH /api/admin/users/:id rejects unauthenticated (401) and Requester (403)', async () => {
+    const target = await createUser({ role: 'REQUESTER' })
+
+    const unauth = await request(app).patch(`/api/admin/users/${target.id}`).send({ name: 'X' })
+    expect(unauth.status).toBe(401)
+
+    const forbidden = await request(app)
+      .patch(`/api/admin/users/${target.id}`)
+      .set('Cookie', requesterCookie)
+      .send({ name: 'X' })
+    expect(forbidden.status).toBe(403)
+  })
+
+  it('POST /api/admin/users/:id/reset-password rejects unauthenticated (401) and Requester (403)', async () => {
+    const target = await createUser({ role: 'REQUESTER' })
+
+    const unauth = await request(app)
+      .post(`/api/admin/users/${target.id}/reset-password`)
+      .send({ newPassword: 'BrandNewPass9!' })
+    expect(unauth.status).toBe(401)
+
+    const forbidden = await request(app)
+      .post(`/api/admin/users/${target.id}/reset-password`)
+      .set('Cookie', requesterCookie)
+      .send({ newPassword: 'BrandNewPass9!' })
+    expect(forbidden.status).toBe(403)
+  })
+
+  it('rejects IT_STAFF on every Admin mutation endpoint with 403 (Administrator-only)', async () => {
+    const staff = await prisma.user.findFirstOrThrow({ where: { isActive: true, role: 'IT_STAFF' } })
+    const staffCookie = await loginAs(app, staff.email)
+    const target = await createUser({ role: 'REQUESTER' })
+
+    const postRes = await request(app)
+      .post('/api/admin/users')
+      .set('Cookie', staffCookie)
+      .send({ name: 'X', email: `staff-blocked-${Date.now()}@example.com`, role: 'REQUESTER', isActive: true, initialPassword: DEV_PASSWORD })
+    expect(postRes.status).toBe(403)
+
+    const patchRes = await request(app).patch(`/api/admin/users/${target.id}`).set('Cookie', staffCookie).send({ name: 'X' })
+    expect(patchRes.status).toBe(403)
+
+    const resetRes = await request(app)
+      .post(`/api/admin/users/${target.id}/reset-password`)
+      .set('Cookie', staffCookie)
+      .send({ newPassword: 'BrandNewPass9!' })
+    expect(resetRes.status).toBe(403)
+  })
+})
+
 describe('GET /api/admin/users (API-34)', () => {
   it('searches by name or email, case-insensitive', async () => {
     const marker = `SearchMarker${Date.now()}`
@@ -261,6 +325,78 @@ describe('The last active Administrator cannot lose Administrator status (API-40
 
     expect(res.status).toBe(200)
     expect(res.body.isActive).toBe(false)
+  })
+
+  it('never lets two concurrent transactions both remove the last two active Administrators (race safety)', async () => {
+    // Flagged in PR #40 review: the count-then-update was originally two separate database
+    // operations, so two concurrent requests could each observe "the other one is still active"
+    // and both succeed, leaving zero active Administrators. Fixed with a Serializable transaction
+    // in server/src/routes/admin.ts wrapping the check and the write.
+    //
+    // This exercises that exact check-then-update pattern directly at the Prisma/Postgres level
+    // (the same shape the route uses), rather than over HTTP: racing two requests through the
+    // real HTTP+auth stack turned out to have a confound unrelated to this fix -- deactivating one
+    // side's account mid-flight invalidates that side's own session (requireAuth correctly
+    // rejects it), which non-deterministically short-circuits the second request before it ever
+    // reaches this transaction at all. Testing the transaction directly avoids that confound and
+    // proves the actual guarantee: Postgres's serializable isolation detects the write-skew
+    // pattern (each side reads the other as still-active, both attempt to write) and aborts one.
+    const adminX = await createUser({ role: 'ADMINISTRATOR' })
+    const adminY = await createUser({ role: 'ADMINISTRATOR' })
+
+    const otherActiveAdmins = await prisma.user.findMany({
+      where: { role: 'ADMINISTRATOR', isActive: true, id: { notIn: [adminX.id, adminY.id] } },
+    })
+
+    async function deactivateIfAnotherActiveAdminRemains(targetId: number) {
+      return prisma.$transaction(
+        async (tx) => {
+          const otherActive = await tx.user.count({
+            where: { role: 'ADMINISTRATOR', isActive: true, id: { not: targetId } },
+          })
+          if (otherActive === 0) {
+            throw new Error('LAST_ADMINISTRATOR')
+          }
+          return tx.user.update({ where: { id: targetId }, data: { isActive: false } })
+        },
+        { isolationLevel: 'Serializable' },
+      )
+    }
+
+    try {
+      await prisma.user.updateMany({
+        where: { id: { in: otherActiveAdmins.map((u) => u.id) } },
+        data: { isActive: false },
+      })
+
+      // X's transaction deactivates Y, Y's transaction deactivates X, started together. Each, read
+      // in isolation, sees "the other one is still an active Administrator" as justification.
+      const results = await Promise.allSettled([
+        deactivateIfAnotherActiveAdminRemains(adminY.id),
+        deactivateIfAnotherActiveAdminRemains(adminX.id),
+      ])
+
+      // At least one of the two must fail (either the application-level LAST_ADMINISTRATOR check,
+      // or Postgres aborting one of the two conflicting serializable transactions outright) --
+      // both succeeding would leave zero active Administrators.
+      const fulfilled = results.filter((r) => r.status === 'fulfilled').length
+      expect(fulfilled).toBeLessThanOrEqual(1)
+      expect(results.some((r) => r.status === 'rejected')).toBe(true)
+
+      const stillActiveAdmins = await prisma.user.count({
+        where: { role: 'ADMINISTRATOR', isActive: true, id: { in: [adminX.id, adminY.id] } },
+      })
+      expect(stillActiveAdmins).toBeGreaterThanOrEqual(1)
+    } finally {
+      await prisma.user.updateMany({
+        where: { id: { in: otherActiveAdmins.map((u) => u.id) } },
+        data: { isActive: true },
+      })
+      await prisma.user.updateMany({
+        where: { id: { in: [adminX.id, adminY.id] } },
+        data: { isActive: true },
+      })
+    }
   })
 })
 
