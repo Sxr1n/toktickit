@@ -2,10 +2,16 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { RequesterProvider } from '../../src/context/RequesterContext'
+import { AuthProvider } from '../../src/context/AuthContext'
 import CreateTicket from '../../src/pages/CreateTicket'
 
-const REQUESTERS = [{ id: 1, name: 'Jennifer Anderson', email: 'jennifer.anderson@example.com' }]
+const CURRENT_USER = {
+  id: 1,
+  name: 'Jennifer Anderson',
+  email: 'jennifer.anderson@example.com',
+  role: 'REQUESTER',
+  mustChangePassword: false,
+}
 const CATEGORIES = [{ id: 1, name: 'Hardware' }]
 const RELATED_SYSTEMS = [{ id: 1, name: 'Corporate Laptop' }]
 
@@ -15,7 +21,7 @@ function jsonResponse(body: unknown, status = 200) {
 
 function mockFetch(overrides: { ticketPost?: () => Response | Promise<Response> } = {}) {
   return vi.fn((url: string, init?: RequestInit) => {
-    if (url.endsWith('/api/dev-requesters')) return Promise.resolve(jsonResponse(REQUESTERS))
+    if (url.endsWith('/api/auth/me')) return Promise.resolve(jsonResponse(CURRENT_USER))
     if (url.endsWith('/api/categories')) return Promise.resolve(jsonResponse(CATEGORIES))
     if (url.endsWith('/api/related-systems')) return Promise.resolve(jsonResponse(RELATED_SYSTEMS))
     if (url.endsWith('/api/tickets') && init?.method === 'POST') {
@@ -25,15 +31,14 @@ function mockFetch(overrides: { ticketPost?: () => Response | Promise<Response> 
   })
 }
 
-async function renderWithSelectedRequester(fetchMock: ReturnType<typeof mockFetch>) {
+async function renderAuthenticated(fetchMock: ReturnType<typeof mockFetch>) {
   vi.stubGlobal('fetch', fetchMock)
-  localStorage.setItem('toktickit.selectedRequesterId', '1')
 
   render(
     <MemoryRouter>
-      <RequesterProvider>
+      <AuthProvider>
         <CreateTicket />
-      </RequesterProvider>
+      </AuthProvider>
     </MemoryRouter>,
   )
 
@@ -62,7 +67,7 @@ afterEach(() => {
 describe('CreateTicket (UI-02)', () => {
   it('shows a field error and does not call the API when Summary is missing', async () => {
     const fetchMock = mockFetch()
-    await renderWithSelectedRequester(fetchMock)
+    await renderAuthenticated(fetchMock)
 
     await userEvent.click(screen.getByRole('button', { name: 'Submit Ticket' }))
 
@@ -78,7 +83,7 @@ describe('CreateTicket (UI-03)', () => {
       resolvePost = resolve
     })
     const fetchMock = mockFetch({ ticketPost: () => postPromise })
-    await renderWithSelectedRequester(fetchMock)
+    await renderAuthenticated(fetchMock)
     await fillValidForm()
 
     await userEvent.click(screen.getByRole('button', { name: 'Submit Ticket' }))
@@ -93,7 +98,7 @@ describe('CreateTicket (UI-03)', () => {
 
 describe('CreateTicket - Create Another Ticket', () => {
   it('returns to a fresh, empty form without needing to navigate away', async () => {
-    await renderWithSelectedRequester(mockFetch())
+    await renderAuthenticated(mockFetch())
     await fillValidForm()
 
     await userEvent.click(screen.getByRole('button', { name: 'Submit Ticket' }))
@@ -113,7 +118,7 @@ describe('CreateTicket (UI-04)', () => {
         throw new Error('network error')
       },
     })
-    await renderWithSelectedRequester(fetchMock)
+    await renderAuthenticated(fetchMock)
     await fillValidForm()
 
     await userEvent.click(screen.getByRole('button', { name: 'Submit Ticket' }))
@@ -125,7 +130,7 @@ describe('CreateTicket (UI-04)', () => {
 
 describe('AttachmentPicker (UI-05)', () => {
   it('rejects an oversized file with a clear message', async () => {
-    await renderWithSelectedRequester(mockFetch())
+    await renderAuthenticated(mockFetch())
 
     const bigFile = new File([new Uint8Array(6 * 1024 * 1024)], 'big.png', { type: 'image/png' })
     const input = screen.getByLabelText('Attachments') as HTMLInputElement
@@ -137,7 +142,7 @@ describe('AttachmentPicker (UI-05)', () => {
   })
 
   it('rejects an unsupported file type with a clear message', async () => {
-    await renderWithSelectedRequester(mockFetch())
+    await renderAuthenticated(mockFetch())
 
     const badFile = new File(['data'], 'virus.exe', { type: 'application/x-msdownload' })
     const input = screen.getByLabelText('Attachments') as HTMLInputElement

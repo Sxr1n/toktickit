@@ -5,48 +5,85 @@ import 'bootstrap/dist/css/bootstrap.min.css'
 import './index.css'
 import App from './App.tsx'
 import AppShell from './components/AppShell.tsx'
-import RequireRequester from './components/RequireRequester.tsx'
-import { RequesterProvider } from './context/RequesterContext.tsx'
+import RequireAuth from './components/RequireAuth.tsx'
+import RequireRole from './components/RequireRole.tsx'
+import { AuthProvider } from './context/AuthContext.tsx'
+import ChangePassword from './pages/ChangePassword.tsx'
 import CreateTicket from './pages/CreateTicket.tsx'
+import Login from './pages/Login.tsx'
 import MyTickets from './pages/MyTickets.tsx'
-import RequesterSelection from './pages/RequesterSelection.tsx'
 import RequesterTicketDetail from './pages/RequesterTicketDetail.tsx'
+import StaffTicketDetail from './pages/StaffTicketDetail.tsx'
+import StaffTicketQueue from './pages/StaffTicketQueue.tsx'
+import UserManagement from './pages/UserManagement.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <RequesterProvider>
+      <AuthProvider>
         <AppShell>
           <Routes>
             <Route path="/" element={<App />} />
-            <Route path="/select-requester" element={<RequesterSelection />} />
+            <Route path="/login" element={<Login />} />
+            <Route
+              path="/change-password"
+              element={
+                <RequireAuth>
+                  <ChangePassword />
+                </RequireAuth>
+              }
+            />
             <Route
               path="/create-ticket"
               element={
-                <RequireRequester>
+                <RequireRole roles={['REQUESTER']}>
                   <CreateTicket />
-                </RequireRequester>
+                </RequireRole>
               }
             />
             <Route
               path="/tickets"
               element={
-                <RequireRequester>
+                <RequireRole roles={['REQUESTER']}>
                   <MyTickets />
-                </RequireRequester>
+                </RequireRole>
               }
             />
             <Route
               path="/tickets/:id"
               element={
-                <RequireRequester>
+                <RequireRole roles={['REQUESTER']}>
                   <RequesterTicketDetail />
-                </RequireRequester>
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/staff/tickets"
+              element={
+                <RequireRole roles={['IT_STAFF', 'ADMINISTRATOR']}>
+                  <StaffTicketQueue />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/staff/tickets/:id"
+              element={
+                <RequireRole roles={['IT_STAFF', 'ADMINISTRATOR']}>
+                  <StaffTicketDetail />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <RequireRole roles={['ADMINISTRATOR']}>
+                  <UserManagement />
+                </RequireRole>
               }
             />
           </Routes>
         </AppShell>
-      </RequesterProvider>
+      </AuthProvider>
     </BrowserRouter>
   </StrictMode>,
 )

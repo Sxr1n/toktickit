@@ -2,16 +2,19 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import request from 'supertest'
 import app from '../../src/app'
 import { prisma } from '../../src/prisma'
+import { loginAs } from '../helpers/testAuth'
 
 let requesterId: number
+let requesterCookie: string
 let ticketId: number
 let removalTicketId: number
 
 beforeAll(async () => {
-  const requester = await prisma.requesterUser.findFirstOrThrow({ where: { isActive: true } })
+  const requester = await prisma.user.findFirstOrThrow({ where: { isActive: true, role: 'REQUESTER' } })
   const category = await prisma.category.findFirstOrThrow()
   const relatedSystem = await prisma.relatedSystem.findFirstOrThrow({ where: { isActive: true } })
   requesterId = requester.id
+  requesterCookie = await loginAs(app, requester.email)
 
   const makeTicket = (summary: string) =>
     prisma.ticket.create({
@@ -23,6 +26,7 @@ beforeAll(async () => {
         summary,
         description: 'Seed ticket used to exercise attachment upload/download/remove behavior.',
         requestedPriority: 'MEDIUM',
+        itPriority: 'MEDIUM',
       },
     })
 
@@ -34,7 +38,7 @@ describe('POST /api/tickets/:id/attachments (API-10)', () => {
   it('accepts a valid image under the size limit', async () => {
     const res = await request(app)
       .post(`/api/tickets/${ticketId}/attachments`)
-      .set('X-Dev-Requester-Id', String(requesterId))
+      .set('Cookie', requesterCookie)
       .attach('file', Buffer.from('fake-image-bytes'), { filename: 'photo.png', contentType: 'image/png' })
 
     expect(res.status).toBe(201)
@@ -48,7 +52,7 @@ describe('POST /api/tickets/:id/attachments - rejections (API-11, API-12)', () =
     const bigBuffer = Buffer.alloc(6 * 1024 * 1024, 1)
     const res = await request(app)
       .post(`/api/tickets/${ticketId}/attachments`)
-      .set('X-Dev-Requester-Id', String(requesterId))
+      .set('Cookie', requesterCookie)
       .attach('file', bigBuffer, { filename: 'big.png', contentType: 'image/png' })
 
     expect(res.status).toBe(400)
@@ -58,7 +62,7 @@ describe('POST /api/tickets/:id/attachments - rejections (API-11, API-12)', () =
   it('rejects an unsupported file type', async () => {
     const res = await request(app)
       .post(`/api/tickets/${ticketId}/attachments`)
-      .set('X-Dev-Requester-Id', String(requesterId))
+      .set('Cookie', requesterCookie)
       .attach('file', Buffer.from('not-an-image'), {
         filename: 'virus.exe',
         contentType: 'application/x-msdownload',
@@ -74,14 +78,14 @@ describe('POST /api/tickets/:id/attachments - limit (API-13)', () => {
     for (let i = 0; i < 4; i++) {
       const res = await request(app)
         .post(`/api/tickets/${ticketId}/attachments`)
-        .set('X-Dev-Requester-Id', String(requesterId))
+        .set('Cookie', requesterCookie)
         .attach('file', Buffer.from('x'), { filename: `file${i}.png`, contentType: 'image/png' })
       expect(res.status).toBe(201)
     }
     // one attachment already exists from the API-10 test above, so this is the 6th
     const res = await request(app)
       .post(`/api/tickets/${ticketId}/attachments`)
-      .set('X-Dev-Requester-Id', String(requesterId))
+      .set('Cookie', requesterCookie)
       .attach('file', Buffer.from('x'), { filename: 'onemore.png', contentType: 'image/png' })
 
     expect(res.status).toBe(400)
@@ -93,13 +97,13 @@ describe('Attachment soft removal (API-14, API-15)', () => {
   it('soft-removes an attachment with a reason, and then blocks its download', async () => {
     const uploadRes = await request(app)
       .post(`/api/tickets/${removalTicketId}/attachments`)
-      .set('X-Dev-Requester-Id', String(requesterId))
+      .set('Cookie', requesterCookie)
       .attach('file', Buffer.from('remove-me'), { filename: 'remove-me.pdf', contentType: 'application/pdf' })
     const attachmentId = uploadRes.body.id
 
     const removeRes = await request(app)
       .patch(`/api/tickets/${removalTicketId}/attachments/${attachmentId}/remove`)
-      .set('X-Dev-Requester-Id', String(requesterId))
+      .set('Cookie', requesterCookie)
       .send({ reason: 'Wrong file, replacing it' })
 
     expect(removeRes.status).toBe(200)
@@ -108,7 +112,7 @@ describe('Attachment soft removal (API-14, API-15)', () => {
 
     const downloadRes = await request(app)
       .get(`/api/tickets/${removalTicketId}/attachments/${attachmentId}/download`)
-      .set('X-Dev-Requester-Id', String(requesterId))
+      .set('Cookie', requesterCookie)
 
     expect(downloadRes.status).toBe(404)
   })
