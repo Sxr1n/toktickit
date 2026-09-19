@@ -106,9 +106,16 @@ users by name, not just the literal `unassigned` value.
 ### GET /api/staff/tickets/:id
 
 - 200 full Ticket detail including Requester info, Category, Related System, both priorities, status,
-  Ticket Owner, existing Attachments (same shape as Lab 2's owned-detail response), Public Comments, and
-  Internal Notes.
+  Ticket Owner, and existing Attachments (same shape as Lab 2's owned-detail response).
 - 404 — Ticket id does not exist.
+
+**Clarified in Issue 33 (flagged in PR #39 review):** Public Comments and Internal Notes are
+deliberately *not* embedded in this response. The client fetches them separately via
+`GET /api/tickets/:id/public-comments` (§3, broadened to accept IT Staff/Administrator in Issue 30)
+and `GET /api/staff/tickets/:id/internal-notes` (below) — the same pattern the Requester-facing
+Ticket Detail page already uses. This keeps the base Ticket response small regardless of how long a
+Comments/Notes thread grows, and reuses one Public Comments implementation for both the Requester
+and Staff views rather than duplicating it inline here.
 
 ### PATCH /api/staff/tickets/:id/owner
 

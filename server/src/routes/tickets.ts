@@ -203,12 +203,12 @@ async function findTicketVisibleForComment(ticketId: number, user: { id: number;
 router.get('/tickets/:id/public-comments', ...requireCommentAuth, async (req, res) => {
   const ticketId = Number(req.params.id)
   if (!Number.isInteger(ticketId)) {
-    return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+    return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
   }
 
   const ticket = await findTicketVisibleForComment(ticketId, req.user!)
   if (!ticket) {
-    return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+    return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
   }
 
   const comments = await prisma.publicComment.findMany({
@@ -232,7 +232,7 @@ router.get('/tickets/:id/public-comments', ...requireCommentAuth, async (req, re
 router.post('/tickets/:id/public-comments', ...requireCommentAuth, async (req, res) => {
   const ticketId = Number(req.params.id)
   if (!Number.isInteger(ticketId)) {
-    return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+    return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
   }
 
   const body = typeof req.body?.body === 'string' ? req.body.body.trim() : ''
@@ -244,7 +244,7 @@ router.post('/tickets/:id/public-comments', ...requireCommentAuth, async (req, r
 
   const ticket = await findTicketVisibleForComment(ticketId, req.user!)
   if (!ticket) {
-    return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+    return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
   }
 
   const comment = await prisma.publicComment.create({
@@ -266,12 +266,12 @@ router.post('/tickets/:id/public-comments', ...requireCommentAuth, async (req, r
 router.patch('/tickets/:id/confirm-resolved', ...requireRequesterAuth, async (req, res) => {
   const ticketId = Number(req.params.id)
   if (!Number.isInteger(ticketId)) {
-    return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+    return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
   }
 
   const ticket = await findOwnedTicket(ticketId, req.user!.id)
   if (!ticket) {
-    return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+    return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
   }
 
   const updated = await prisma.ticket.update({

@@ -156,12 +156,16 @@ router.get('/staff/tickets', ...requireStaffAuth, async (req, res) => {
 })
 
 router.get('/staff/users', ...requireStaffAuth, async (_req, res) => {
-  const users = await prisma.user.findMany({
-    where: { isActive: true, role: { in: ['IT_STAFF', 'ADMINISTRATOR'] } },
-    select: { id: true, name: true, role: true },
-    orderBy: { name: 'asc' },
-  })
-  res.json(users)
+  try {
+    const users = await prisma.user.findMany({
+      where: { isActive: true, role: { in: ['IT_STAFF', 'ADMINISTRATOR'] } },
+      select: { id: true, name: true, role: true },
+      orderBy: { name: 'asc' },
+    })
+    res.json(users)
+  } catch {
+    res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Unable to load Staff users.' } })
+  }
 })
 
 function serializeTicketDetail(ticket: Prisma.TicketGetPayload<{
@@ -195,7 +199,7 @@ function serializeTicketDetail(ticket: Prisma.TicketGetPayload<{
 
 router.get('/staff/tickets/:id', ...requireStaffAuth, async (req, res) => {
   const id = Number(req.params.id)
-  if (!Number.isInteger(id)) return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+  if (!Number.isInteger(id)) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
 
   const ticket = await prisma.ticket.findUnique({
     where: { id },
@@ -207,17 +211,17 @@ router.get('/staff/tickets/:id', ...requireStaffAuth, async (req, res) => {
       attachments: { select: ATTACHMENT_SELECT, orderBy: { id: 'asc' } },
     },
   })
-  if (!ticket) return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+  if (!ticket) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
 
   res.json(serializeTicketDetail(ticket))
 })
 
 router.patch('/staff/tickets/:id/owner', ...requireStaffAuth, async (req, res) => {
   const id = Number(req.params.id)
-  if (!Number.isInteger(id)) return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+  if (!Number.isInteger(id)) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
 
   const ticket = await prisma.ticket.findUnique({ where: { id } })
-  if (!ticket) return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+  if (!ticket) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
 
   const raw = req.body?.ticketOwnerId
   let ticketOwnerId: number | null
@@ -242,7 +246,7 @@ router.patch('/staff/tickets/:id/owner', ...requireStaffAuth, async (req, res) =
 
 router.patch('/staff/tickets/:id/it-priority', ...requireStaffAuth, async (req, res) => {
   const id = Number(req.params.id)
-  if (!Number.isInteger(id)) return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+  if (!Number.isInteger(id)) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
 
   const itPriority = req.body?.itPriority
   if (!PRIORITIES.includes(itPriority as (typeof PRIORITIES)[number])) {
@@ -250,7 +254,7 @@ router.patch('/staff/tickets/:id/it-priority', ...requireStaffAuth, async (req, 
   }
 
   const ticket = await prisma.ticket.findUnique({ where: { id } })
-  if (!ticket) return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+  if (!ticket) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
 
   const updated = await prisma.ticket.update({
     where: { id },
@@ -261,7 +265,7 @@ router.patch('/staff/tickets/:id/it-priority', ...requireStaffAuth, async (req, 
 
 router.patch('/staff/tickets/:id/status', ...requireStaffAuth, async (req, res) => {
   const id = Number(req.params.id)
-  if (!Number.isInteger(id)) return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+  if (!Number.isInteger(id)) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
 
   const nextStatus = req.body?.status
   if (typeof nextStatus !== 'string' || !STATUSES.includes(nextStatus as (typeof STATUSES)[number])) {
@@ -269,7 +273,7 @@ router.patch('/staff/tickets/:id/status', ...requireStaffAuth, async (req, res) 
   }
 
   const ticket = await prisma.ticket.findUnique({ where: { id } })
-  if (!ticket) return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+  if (!ticket) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
 
   const allowed = TRANSITIONS[ticket.currentStatus]
   if (!allowed.includes(nextStatus as (typeof STATUSES)[number])) {
@@ -297,10 +301,10 @@ router.patch('/staff/tickets/:id/status', ...requireStaffAuth, async (req, res) 
 
 router.get('/staff/tickets/:id/internal-notes', ...requireStaffAuth, async (req, res) => {
   const ticketId = Number(req.params.id)
-  if (!Number.isInteger(ticketId)) return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+  if (!Number.isInteger(ticketId)) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
 
   const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } })
-  if (!ticket) return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+  if (!ticket) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
 
   const notes = await prisma.internalNote.findMany({
     where: { ticketId },
@@ -321,7 +325,7 @@ router.get('/staff/tickets/:id/internal-notes', ...requireStaffAuth, async (req,
 
 router.post('/staff/tickets/:id/internal-notes', ...requireStaffAuth, async (req, res) => {
   const ticketId = Number(req.params.id)
-  if (!Number.isInteger(ticketId)) return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+  if (!Number.isInteger(ticketId)) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
 
   const body = typeof req.body?.body === 'string' ? req.body.body.trim() : ''
   if (body.length < 3 || body.length > 2000) {
@@ -329,7 +333,7 @@ router.post('/staff/tickets/:id/internal-notes', ...requireStaffAuth, async (req
   }
 
   const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } })
-  if (!ticket) return res.status(404).json({ error: { code: 'NOT_FOUND' } })
+  if (!ticket) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
 
   const note = await prisma.internalNote.create({
     data: { ticketId, authorId: req.user!.id, body },
