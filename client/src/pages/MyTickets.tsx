@@ -262,7 +262,7 @@ export default function MyTickets() {
                     <td>
                       <StatusBadge status={t.currentStatus} />
                     </td>
-                    <td>{new Date(t.createdAt).toLocaleDateString()}</td>
+                    <td>{new Date(t.createdAt).toLocaleDateString('en-US')}</td>
                   </tr>
                 ))}
               </tbody>

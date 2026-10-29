@@ -138,6 +138,16 @@ Full account below, organized by what was found.
   assertions with manual screenshot inspection, and the root-cause fix (throwaway accounts) over
   the state-leakage flakiness rather than a workaround.
 
+### [PR #45](https://github.com/Sxr1n/toktickit/pull/45) - Release: lab3-staging into main
+- Reviewer: **Leviathan-c137** — Approved. One minor observation: a possible stale-role window if
+  an Administrator changed their own role, since the session might keep the old role.
+- Checked directly against `server/src/lib/auth.ts` and `server/src/middleware/requireAuth.ts`: the
+  signed session payload is only `{ sub, tv }` (user id and token version) — role is never embedded
+  in the token — and `requireAuth` re-reads the caller's role from the database on every request.
+  There is no stale-role window by construction; replied on the PR thread with this exact code
+  reference rather than either implementing an unnecessary fix or leaving the observation
+  unaddressed. Merged as-is (`mergedAt: 2026-09-19T16:56:52Z`, merge commit `7be47d7`).
+
 ## Reviews I gave on partners' repos
 
 Not completed as part of this session — this session's scope was implementing and reviewing changes

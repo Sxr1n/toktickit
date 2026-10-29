@@ -266,7 +266,7 @@ export default function StaffTicketDetail() {
           </div>
           <div className="col-6">
             <div className="text-muted small">Ticket Date</div>
-            <div>{new Date(ticket.createdAt).toLocaleString()}</div>
+            <div>{new Date(ticket.createdAt).toLocaleString('en-US')}</div>
           </div>
         </div>
         <div className="row mb-2">
@@ -346,6 +346,17 @@ export default function StaffTicketDetail() {
           </div>
         </div>
 
+        {ticket.requesterConfirmedResolved && (
+          <div
+            className="mt-2 px-3 py-2"
+            style={{ backgroundColor: '#EAF6EF', color: '#006B3C', borderRadius: 6, fontSize: '0.9rem' }}
+            role="status"
+          >
+            ✓ Requester indicated this problem appears resolved. IT Staff remains responsible for
+            formally setting the Ticket to Resolved or Closed.
+          </div>
+        )}
+
         {ownerError && (
           <p className="text-danger mt-2 mb-0" role="alert">
             {ownerError}
@@ -410,7 +421,7 @@ export default function StaffTicketDetail() {
                           {c.authorRole}
                         </span>
                       </div>
-                      <span className="text-muted small">{new Date(c.createdAt).toLocaleString()}</span>
+                      <span className="text-muted small">{new Date(c.createdAt).toLocaleString('en-US')}</span>
                     </div>
                     <div className="mt-1">{c.body}</div>
                   </li>
@@ -454,7 +465,7 @@ export default function StaffTicketDetail() {
                   <li key={n.id} className="list-group-item" style={{ backgroundColor: '#FBF7EF' }}>
                     <div className="d-flex justify-content-between align-items-baseline">
                       <strong>{n.authorName}</strong>
-                      <span className="text-muted small">{new Date(n.createdAt).toLocaleString()}</span>
+                      <span className="text-muted small">{new Date(n.createdAt).toLocaleString('en-US')}</span>
                     </div>
                     <div className="mt-1">{n.body}</div>
                   </li>

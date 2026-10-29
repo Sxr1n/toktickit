@@ -113,5 +113,10 @@ test('capture Login, Change Password, Staff Ticket Queue, Staff Ticket Detail, a
   await clickNavLink(page, 'Users')
   await expect(page.getByRole('heading', { name: 'User Management' })).toBeVisible()
   await expectNoHorizontalOverflow(page, 'User Management')
-  await page.screenshot({ path: `artifacts/lab-03/screenshots/user-management/${viewport}.png`, fullPage: true })
+  // Viewport only, not fullPage: the User Management list has no pagination by design (the
+  // labsheet explicitly excludes it), so its length is unbounded by however much data currently
+  // exists -- a fullPage capture would grow arbitrarily tall instead of showing what a real user
+  // actually sees without scrolling. Caught during Lab 3 report-preparation QA, where a heavily
+  // exercised dev database made a fullPage capture of this screen ~26,000px tall.
+  await page.screenshot({ path: `artifacts/lab-03/screenshots/user-management/${viewport}.png`, fullPage: false })
 })

@@ -200,7 +200,7 @@ export default function RequesterTicketDetail() {
           </div>
           <div className="col-6">
             <div className="text-muted small">Ticket Date</div>
-            <div>{new Date(ticket.createdAt).toLocaleString()}</div>
+            <div>{new Date(ticket.createdAt).toLocaleString('en-US')}</div>
           </div>
         </div>
         <div className="row mb-2">
@@ -328,7 +328,7 @@ export default function RequesterTicketDetail() {
                     {c.authorRole}
                   </span>
                 </div>
-                <span className="text-muted small">{new Date(c.createdAt).toLocaleString()}</span>
+                <span className="text-muted small">{new Date(c.createdAt).toLocaleString('en-US')}</span>
               </div>
               <div className="mt-1">{c.body}</div>
             </li>
@@ -361,7 +361,7 @@ export default function RequesterTicketDetail() {
 
       {ticket.requesterConfirmedResolved ? (
         <div className="p-3" style={{ backgroundColor: '#F8F9F6', borderRadius: 8, color: '#6c757d' }}>
-          You indicated this looks resolved on {new Date(ticket.updatedAt).toLocaleDateString()}.
+          You indicated this looks resolved on {new Date(ticket.updatedAt).toLocaleDateString('en-US')}.
         </div>
       ) : (
         <button type="button" className="btn btn-outline-primary" disabled={confirmingResolved} onClick={handleConfirmResolved}>
