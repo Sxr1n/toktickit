@@ -51,13 +51,15 @@ Unit-level (`server/tests/lab-03/auth-lib.unit.test.ts`): password-rule validato
 
 | Test ID | AC / Requirement | What It Tests | Expected Result | Status |
 |---|---|---|---|---|
-| API-11 | AC-08 | Any protected route, no session | 401 across every route family (tickets, staff, admin) | Planned |
-| API-12 | AC-21 | Requester calls `/api/staff/*` | 403 on every staff route | Planned |
-| API-13 | AC-21 | Requester calls `/api/admin/*` | 403 on every admin route | Planned |
-| API-14 | — | IT Staff calls `/api/admin/*` | 403 (Administrator-only, per the labsheet's explicit role separation) | Planned |
-| API-15 | AC-04, BR-04 | Requester calls internal-notes GET/POST | 403, response body contains no note content | Planned |
-| API-16 | AC-03, BR-03 | Requester supplies a foreign `requesterId`/`userId` in the request body on any Requester route | Server ignores it; the authenticated identity is used instead | Planned |
-| API-17 | AC-12, BR-12 | Requester B requests Requester A's Ticket by id | 404 (unchanged Lab 2 convention) | Planned |
+| API-11 | AC-08 | Any protected route, no session | 401 across every route family (tickets, staff, admin) | Pass |
+| API-12 | AC-21 | Requester calls `/api/staff/*` | 403 on every staff route | Pass |
+| API-13 | AC-21 | Requester calls `/api/admin/*` | 403 on every admin route | Pass |
+| API-14 | — | IT Staff calls `/api/admin/*` | 403 (Administrator-only, per the labsheet's explicit role separation) | Pass |
+| API-15 | AC-04, BR-04 | Requester calls internal-notes GET/POST | 403, response body contains no note content | Pass |
+| API-16 | AC-03, BR-03 | Requester supplies a foreign `requesterId`/`userId` in the request body on any Requester route | Server ignores it; the authenticated identity is used instead | Pass |
+| API-17 | AC-12, BR-12 | Requester B requests Requester A's Ticket by id | 404 (unchanged Lab 2 convention) | Pass |
+
+This consolidated file was written and confirmed passing (12/12) during report-preparation QA after Issue 33 — it had been planned since Issue 27 but never actually created as its own file, even though every individual assertion it makes was already independently covered inline within staff-queue.api.test.ts, staff-ticket-detail.api.test.ts, comments-notes.api.test.ts, and users-admin.api.test.ts. Caught by re-checking this file against the real repository state while assembling final submission evidence, rather than trusting the Issue 33 "all Planned rows flipped to Pass" summary at face value.
 
 ### 2.3 Staff Ticket Queue — `server/tests/lab-03/staff-queue.api.test.ts`
 
@@ -439,6 +441,78 @@ never actually built across Issues 27-32, caught here). E2E 12/12, run **twice c
 zero manual database intervention between runs** — the Lab 2 specs were retrofitted to the
 throwaway-account pattern too (see below), so the whole suite is now fully self-contained.
 
+Report-preparation QA (after Issue 33, while assembling the final submission): re-checked this file
+against the actual repository state rather than trusting the "all Planned rows now Pass" claim above
+at face value, and found API-11 through API-17 (the "2.2 Authorization matrix" section) were still
+genuinely marked `Planned` — `server/tests/lab-03/authorization.api.test.ts` had been named in this
+plan since Issue 27 but never actually created as its own file. Every individual assertion it makes
+was already independently covered inline elsewhere (staff-queue/staff-ticket-detail/comments-notes/
+users-admin test files each assert their own slice of the role/ownership matrix), so this wasn't a
+missing behavior, only a missing dedicated cross-cutting test file and a stale status in this
+document. Wrote the file for real (12 tests: no-session 401 across tickets/staff/admin, Requester
+and IT Staff forbidden from every staff/admin route respectively, Internal Notes 403 with a
+content-leak check against a real seeded note, spoofed-`requesterId` rejection on Ticket creation,
+and the cross-Requester 404), ran it, confirmed 12/12 passing, and updated API-11–17's status above
+from `Planned` to `Pass`. Server total is now **120/120** (108 + 12).
+
+**Found and fixed two more real issues during report-preparation QA**, both caught by having a
+dedicated evidence-capture pass actually attempt every scenario the labsheet's Part 5-9 submission
+table calls for, rather than assuming Issue 32's screenshots already covered it:
+
+1. **A real responsive-layout bug, root-caused through three iterations, not guessed once**:
+   `e2e/lab-03/visual-checklist.spec.ts`'s mobile Staff Ticket Queue assertion started failing
+   (`scrollWidth` up to 793 vs. `clientWidth` 390) after this repository's shared dev database grew
+   large from a session's worth of manual verification and evidence-capture work (every throwaway
+   Ticket ever created by any spec or manual check accumulates — nothing resets it). First guess was
+   the mobile card's Category/priority-badge row (`d-flex justify-content-between` with no wrap or
+   truncation) — genuinely unprotected, so fixed it (`flex-wrap` + `text-truncate` + max-width) as a
+   real defensive improvement, but re-running showed the failure persisted and even grew
+   (`scrollWidth` increasing 750→793 across repeated runs). Second guess was the Ticket Owner name on
+   the same card layout (also genuinely unprotected) — fixed that too, same pattern, same result:
+   still failing. Stopped guessing and actually inspected the live DOM with a throwaway diagnostic
+   script (`getBoundingClientRect` on every element, sorted by right edge) instead of reading the CSS
+   and reasoning about it — found the true cause immediately: `result.totalPages` had grown to 20+
+   as the ticket count climbed past 200 during this session, and the pagination control
+   (`<ul className="pagination">`, one `<li>` per page number, Bootstrap's `.pagination` is
+   `display: flex` with no wrap) renders every page-number button in one unbroken horizontal row —
+   an unbounded-width control with no cap, wrap, or windowing, latent since Lab 3's original seed
+   data never had enough Tickets to reach more than 1-2 pages at mobile width. Fixed with a single
+   `flex-wrap` utility class on the pagination `<ul>`; confirmed 5/5 clean repeated runs (previously
+   2/5 or worse). The first two (real, but not root-cause) fixes were kept — they're correct
+   hardening regardless — and `StaffTicketQueue.test.tsx` (4/4) still passes unchanged.
+2. **A real missing feature**, not just a missing test: `requesterConfirmedResolved` (BR-22, FR-11)
+   was returned by `GET /api/staff/tickets/:id` since Issue 30, but no screen ever rendered it —
+   `ui-spec.md` §8 never actually specified it for the Staff Ticket Detail screen, and the labsheet's
+   own Part 7 submission table explicitly requires "Requester resolution indication" as evidence.
+   Added a read-only banner to `StaffTicketDetail.tsx`, shown only when the flag is true ("Requester
+   indicated this problem appears resolved. IT Staff remains responsible for formally setting the
+   Ticket to Resolved or Closed."), documented in `ui-spec.md` §8, and covered by two new tests in
+   `StaffTicketDetail.test.tsx` (shows when true, absent when false) — client total is now **45/45**
+   (43 + 2).
+
+**Found and fixed one more real issue, discovered very late — a genuine Zen Green compliance bug
+present across all three labs, not just Lab 3**: while assembling the final report's screenshot
+evidence, every primary button ("Sign In", "New User", "Submit Ticket", etc.) and every link was
+rendering in Bootstrap's stock blue, not the `--color-primary` / `--color-secondary` Zen Green green
+the specification has always required — the exact defect independently flagged in this project's own
+Lab 2 submission review (`Claude outputs/Lab2_ข้อเสนอแนะการแก้ไข.md`, point 3) and apparently never
+actually fixed at the root. Root cause: `client/src/index.css` was still the unmodified `npm create
+vite` scaffold stylesheet from Lab 1 — a decorative hero/`#next-steps`/`.ticks` demo layout plus a
+global `#root { text-align: center; width: 1126px; ... }` and `h1 { letter-spacing: -1.68px }` that
+had nothing to do with the real TokTickIT UI — and no file anywhere in the codebase ever defined the
+Bootstrap `--bs-primary`/`.btn-primary` override the design spec implies. Individual components did
+hardcode the correct green for specific elements (the header bar, badges), which is why this was
+never caught by any earlier visual check — those specific elements looked right, while generic
+Bootstrap buttons and links silently did not. Fixed by replacing `index.css` with the actual Zen
+Green token set (`--color-primary`, `--color-secondary`, etc.) plus a global override so every stock
+Bootstrap `.btn-primary`, `.btn-outline-secondary`, link, and pagination control picks up the correct
+colors automatically, and removing the leftover Vite demo layout rules that were compressing and
+center-aligning page headings. Verified with a fresh screenshot showing the Login button rendering in
+`#006B3C` and the heading rendering normally. Full regression re-run clean after the fix: server
+120/120, client 45/45, E2E 12/12 (this change touches only CSS, not application logic, so no test
+assertions needed to change). Every screenshot in this report's Parts 5-9 was re-captured after this
+fix, replacing the earlier (color-incorrect) captures.
+
 This Issue's "final QA" mandate included going back through every real reviewer comment left on
 Lab 3 PRs and checking whether it was actually acted on, not just replied to with "thank you." That
 audit found substantial unaddressed feedback:
@@ -540,3 +614,13 @@ password-drift class of bug entirely, for the whole suite.
   mechanism no longer exists under real auth (switching identity now means logging out and back in as a
   different account, a full page/state reset, not a same-session context switch), so the test was
   removed rather than adapted — there is no real-auth equivalent scenario to translate it into.
+- A minor latent race condition in `StaffTicketQueue.tsx`, found (not fixed) during report-preparation
+  evidence capture: the search/filter fetch isn't cancelled or sequenced against the component's initial
+  unfiltered load, so applying a filter immediately after the page first renders can occasionally let
+  the initial fetch's response resolve after the filtered one, briefly showing stale unfiltered data.
+  Did not affect any test or captured evidence (worked around in capture scripts by waiting for the
+  initial load to settle first), and no user-facing report of this happening during manual use. A real
+  fix (an `AbortController` guard, the same pattern already suggested and deferred in PR #38's review
+  for this file) is reasonable future polish but out of proportion to retrofit this late, since it
+  changes behavior under network latency that this course lab's manual/E2E verification can't reliably
+  reproduce or regression-test anyway.
