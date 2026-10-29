@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { apiGet } from '../api/http'
 
 interface StaffUser {
@@ -70,10 +70,13 @@ function StatusBadge({ status }: { status: string }) {
 export default function StaffTicketQueue() {
   const [staffUsers, setStaffUsers] = useState<StaffUser[]>([])
 
+  // Dashboard metric tiles drill down here via ?status=X / ?ticketOwnerId=N -- read once on mount so
+  // the Queue opens already filtered, matching ui-spec.md's "each tile links...pre-filtered".
+  const [searchParams] = useSearchParams()
   const [search, setSearch] = useState('')
-  const [status, setStatus] = useState('')
+  const [status, setStatus] = useState(searchParams.get('status') ?? '')
   const [itPriority, setItPriority] = useState('')
-  const [ticketOwnerId, setTicketOwnerId] = useState('')
+  const [ticketOwnerId, setTicketOwnerId] = useState(searchParams.get('ticketOwnerId') ?? '')
   const [sortBy, setSortBy] = useState<SortField>('createdAt')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [page, setPage] = useState(1)
