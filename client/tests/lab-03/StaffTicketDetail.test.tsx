@@ -199,3 +199,34 @@ describe('StaffTicketDetail - Public Comments vs. Internal Notes (UI-05)', () =>
     expect(screen.queryByText('No internal notes yet.')).not.toBeInTheDocument()
   })
 })
+
+describe('StaffTicketDetail - Requester resolution indication (FR-11, BR-22)', () => {
+  it('shows the resolved-by-Requester banner when requesterConfirmedResolved is true', async () => {
+    renderDetail((url) => {
+      if (url.endsWith('/api/auth/me')) return jsonResponse(CURRENT_USER)
+      if (url.endsWith('/api/staff/users')) return jsonResponse(STAFF_USERS)
+      if (url.endsWith('/api/tickets/1/public-comments')) return jsonResponse([])
+      if (url.endsWith('/api/staff/tickets/1/internal-notes')) return jsonResponse([])
+      if (url.endsWith('/api/staff/tickets/1')) return jsonResponse(baseTicket({ requesterConfirmedResolved: true }))
+      throw new Error(`Unexpected fetch to ${url}`)
+    })
+
+    expect(
+      await screen.findByText(/Requester indicated this problem appears resolved/),
+    ).toBeInTheDocument()
+  })
+
+  it('shows no banner when requesterConfirmedResolved is false', async () => {
+    renderDetail((url) => {
+      if (url.endsWith('/api/auth/me')) return jsonResponse(CURRENT_USER)
+      if (url.endsWith('/api/staff/users')) return jsonResponse(STAFF_USERS)
+      if (url.endsWith('/api/tickets/1/public-comments')) return jsonResponse([])
+      if (url.endsWith('/api/staff/tickets/1/internal-notes')) return jsonResponse([])
+      if (url.endsWith('/api/staff/tickets/1')) return jsonResponse(baseTicket())
+      throw new Error(`Unexpected fetch to ${url}`)
+    })
+
+    await screen.findByRole('heading', { name: 'TKT-2026-000001' })
+    expect(screen.queryByText(/Requester indicated this problem appears resolved/)).not.toBeInTheDocument()
+  })
+})

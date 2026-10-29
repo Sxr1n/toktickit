@@ -15,6 +15,15 @@ scale, same editable/read-only/disabled/error field states, same button hierarch
 breakpoints (desktop ≥ 992px, tablet 768–991px, mobile < 768px), same accessibility rules (labelled
 inputs, visible focus, `aria-invalid`/`aria-describedby`, no color-only meaning).
 
+**Report-preparation QA correction**: these tokens were specified from Lab 1 onward but never
+actually implemented as a real stylesheet — `client/src/index.css` was still the unmodified Vite
+scaffold template, so every stock Bootstrap `.btn-primary`/link/pagination control rendered in
+Bootstrap's default blue instead of Zen Green, across all three labs. Individual components hardcoded
+the correct green inline for specific elements (header bar, badges), which is why this went unnoticed
+through every earlier visual check. Fixed in `index.css` with a real token definition plus a global
+Bootstrap-variable override, verified by fresh screenshots, documented in full in `tests.md`'s Final
+Results.
+
 ## 2. New badge family — Role
 
 | Role | Badge |
@@ -115,6 +124,15 @@ token) against the surrounding read-only fields:
 - **Current Status**: a select constrained client-side to the permitted next statuses from BR-21 (the
   server is the authority; the client narrows the choices as a UX courtesy, not a security control).
 
+When `requesterConfirmedResolved` is true, a green informational banner appears below the priority/
+owner/status row: "Requester indicated this problem appears resolved. IT Staff remains responsible
+for formally setting the Ticket to Resolved or Closed." — read-only, never a control IT Staff can
+toggle directly (BR-22: it only changes via the Requester's own action, or resets automatically when
+IT Staff resumes work). Absent entirely when false, so it never implies a false signal. **Added during
+report-preparation QA**: the backend already returned this field from Issue 30 onward, but no screen
+ever rendered it — a real gap, since the labsheet's Part 7 grading evidence explicitly requires
+"Requester resolution indication" to be demonstrable on this screen.
+
 Below the ticket information card, two visually distinct tabbed or side-by-side sections:
 
 - **Public Comments** — `--color-pale` background tint, visible to everyone; same thread UI as the
@@ -173,6 +191,9 @@ Performed at 1440×900, 820×1024, 390×844 against the screenshots in `artifact
 - Administrator panel's disabled-button states (self-deactivation, last-Administrator) are visible, not
   just functionally blocked.
 - No clipping, overlap, or horizontal scrolling on any new screen at any breakpoint.
+- Primary buttons and links use `--color-primary`/`--color-secondary`, not Bootstrap's default blue
+  (failed on first inspection — see the Report-preparation QA correction in section 1 — re-verified
+  after the fix with fresh screenshots).
 
 ## 13. Screenshot paths
 

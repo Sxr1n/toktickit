@@ -262,7 +262,7 @@ export default function StaffTicketQueue() {
                     <td>
                       <Link to={`/staff/tickets/${t.id}`}>{t.ticketNumber}</Link>
                     </td>
-                    <td>{new Date(t.createdAt).toLocaleDateString()}</td>
+                    <td>{new Date(t.createdAt).toLocaleDateString('en-US')}</td>
                     <td>{t.summary}</td>
                     <td>{t.categoryName}</td>
                     <td>
@@ -290,11 +290,11 @@ export default function StaffTicketQueue() {
               >
                 <div className="d-flex justify-content-between">
                   <strong>{t.ticketNumber}</strong>
-                  <span className="text-muted small">{new Date(t.createdAt).toLocaleDateString()}</span>
+                  <span className="text-muted small">{new Date(t.createdAt).toLocaleDateString('en-US')}</span>
                 </div>
                 <div>{t.summary}</div>
-                <div className="d-flex justify-content-between mt-1">
-                  <span>{t.categoryName}</span>
+                <div className="d-flex flex-wrap justify-content-between align-items-center gap-1 mt-1">
+                  <span className="text-truncate" style={{ maxWidth: '55%' }}>{t.categoryName}</span>
                   <div className="d-flex gap-2 align-items-center">
                     <span className="text-muted small" aria-hidden="true">
                       Req.
@@ -306,9 +306,11 @@ export default function StaffTicketQueue() {
                     <PriorityBadge priority={t.itPriority} label={`IT Priority: ${t.itPriority}`} />
                   </div>
                 </div>
-                <div className="d-flex justify-content-between mt-1">
+                <div className="d-flex flex-wrap justify-content-between align-items-center gap-1 mt-1">
                   <StatusBadge status={t.currentStatus} />
-                  <span className="text-muted">{t.ticketOwnerName ?? 'Unassigned'}</span>
+                  <span className="text-muted text-truncate" style={{ maxWidth: '60%' }}>
+                    {t.ticketOwnerName ?? 'Unassigned'}
+                  </span>
                 </div>
               </Link>
             ))}
@@ -316,7 +318,7 @@ export default function StaffTicketQueue() {
 
           {result.totalPages > 1 && (
             <nav aria-label="Ticket pagination" className="mt-3">
-              <ul className="pagination">
+              <ul className="pagination flex-wrap">
                 {Array.from({ length: result.totalPages }, (_, i) => i + 1).map((p) => (
                   <li key={p} className={`page-item ${p === result.page ? 'active' : ''}`}>
                     <button type="button" className="page-link" onClick={() => setPage(p)}>
