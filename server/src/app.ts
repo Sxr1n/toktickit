@@ -5,6 +5,7 @@ import adminRouter from './routes/admin'
 import attachmentsRouter from './routes/attachments'
 import authRouter from './routes/auth'
 import categoriesRouter from './routes/categories'
+import dashboardRouter from './routes/dashboard'
 import healthRouter from './routes/health'
 import relatedSystemsRouter from './routes/relatedSystems'
 import staffRouter from './routes/staff'
@@ -29,5 +30,6 @@ app.use('/api', attachmentsRouter)
 app.use('/api', authRouter)
 app.use('/api', staffRouter)
 app.use('/api', adminRouter)
+app.use('/api', dashboardRouter)
 
 export default app

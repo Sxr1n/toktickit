@@ -40,6 +40,7 @@ model User {
   ownedTickets       Ticket[]        @relation("TicketOwner")
   publicComments     PublicComment[]
   internalNotes      InternalNote[]
+  actionsTaken       ActionTaken[]
 
   @@index([role])
 }
@@ -91,6 +92,7 @@ model Ticket {
   attachments       Attachment[]
   publicComments    PublicComment[]
   internalNotes     InternalNote[]
+  actionsTaken      ActionTaken[]
 
   @@index([requesterId])
   @@index([categoryId])
@@ -118,6 +120,23 @@ model InternalNote {
   author    User     @relation(fields: [authorId], references: [id])
   body      String
   createdAt DateTime @default(now())
+
+  @@index([ticketId])
+}
+
+model ActionTaken {
+  id               Int      @id @default(autoincrement())
+  ticketId         Int
+  ticket           Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  performedById    Int
+  performedBy      User     @relation(fields: [performedById], references: [id])
+  description      String
+  result           String
+  followUpRequired Boolean  @default(false)
+  followUpNote     String?
+  attachmentNotes  String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@index([ticketId])
 }
