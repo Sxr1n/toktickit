@@ -7,13 +7,20 @@ Requester selector, Create Ticket, My Tickets, Ticket Detail, and the Attachment
 replaced that temporary selector with real cookie-based authentication and role-based authorization
 for three roles — Requester, IT Staff, Administrator — and added the IT Staff Ticket Queue/Detail
 workflow (claim/reassign, IT Priority, status transitions, Internal Notes), a Public Comments thread
-shared between Requesters and staff, and Administrator User Management. See `docs/lab-03/` for the
-full sprint contract, test results, and peer review log.
+shared between Requesters and staff, and Administrator User Management. Lab 4 completes the core
+workflow: IT Staff and Administrators record Actions Taken against a Ticket (a structured work log,
+separate from Public Comments/Internal Notes, editable with optimistic-concurrency conflict
+detection), and both Requesters and IT Staff get a role-appropriate Dashboard as their new home screen,
+replacing the original Lab 1 health-check scaffold. See `docs/lab-04/` for the full sprint contract,
+test results, and peer review log.
 
 **Seeded accounts (local development only, never a real secret):** every seeded account's password is
 `DevPass123!`. Requesters (`jennifer.anderson@example.com` and 3 others) must change this password at
 first login; seeded IT Staff (`priya.nakamura@example.com` and 2 others) and the Administrator
-(`taylor.admin@example.com`) do not. See `server/prisma/seed.ts` for the full list.
+(`taylor.admin@example.com`) do not. `server/prisma/seed.ts` also seeds 8 realistic Tickets spanning
+every status/priority/ownership combination, with Actions Taken counts of zero, one, and several — the
+first real Ticket seed data in this project's history (Lab 3's seed script never created any). See
+`server/prisma/seed.ts` for the full list.
 
 ## Tech stack
 
@@ -35,22 +42,24 @@ toktickit/
 │   │   ├── components/          AppShell (role-conditional nav + Logout), AttachmentPicker,
 │   │   │                        RequireAuth, RequireRole
 │   │   ├── context/              AuthContext (signed-in user, login/logout/refreshUser)
-│   │   └── pages/                Login, ChangePassword, CreateTicket, MyTickets,
-│   │                             RequesterTicketDetail, StaffTicketQueue, StaffTicketDetail,
-│   │                             UserManagement
-│   └── tests/{lab-01,lab-02,lab-03}/  Vitest tests
+│   │   └── pages/                Home (role-routed dashboard homepage), Login, ChangePassword,
+│   │                             CreateTicket, MyTickets, RequesterTicketDetail, StaffTicketQueue,
+│   │                             StaffTicketDetail, UserManagement, StaffDashboard,
+│   │                             RequesterDashboard
+│   └── tests/{lab-01,lab-02,lab-03,lab-04}/  Vitest tests
 ├── server/
 │   ├── prisma/                  Prisma schema, migrations (Category → User rename → Ticket
-│   │                            owner/priority → PublicComment/InternalNote), seed
+│   │                            owner/priority → PublicComment/InternalNote → ActionTaken), seed
 │   ├── src/
 │   │   ├── routes/               health, categories, relatedSystems, tickets, attachments, auth,
-│   │   │                         staff (Ticket Queue/Detail, Internal Notes), admin (User Management)
+│   │   │                         staff (Ticket Queue/Detail, Internal Notes, Actions Taken), admin
+│   │   │                         (User Management), dashboard (Staff/Requester metrics)
 │   │   ├── middleware/           requireAuth (JWT cookie), requireRole, requireFreshPassword
 │   │   ├── lib/auth.ts           session signing/verification, password rule validation
 │   │   └── upload.ts             multer config (allowed types, size limit)
-│   └── tests/{lab-01,lab-02,lab-03}/  Supertest tests
-├── e2e/{lab-02,lab-03}/         Playwright end-to-end specs (repo root - covers client + server together)
-├── artifacts/{lab-02,lab-03}/screenshots/  Desktop/tablet/mobile screenshots from the E2E visual checklist
+│   └── tests/{lab-01,lab-02,lab-03,lab-04}/  Supertest tests
+├── e2e/{lab-02,lab-03,lab-04}/  Playwright end-to-end specs (repo root - covers client + server together)
+├── artifacts/{lab-02,lab-03,lab-04}/screenshots/  Desktop/tablet/mobile screenshots from the E2E visual checklist
 ├── docs/
 │   ├── lab-01/                  README-level docs for Lab 1
 │   ├── lab-02/
@@ -60,8 +69,9 @@ toktickit/
 │   │   ├── tests.md              Test plan, AC traceability, results
 │   │   ├── ai-use.md             AI-assistant usage log and reflection
 │   │   └── reviewer.md           Peer review log
-│   └── lab-03/                  Same five-document structure as lab-02, covering auth/RBAC/
-│                                 IT Staff/Administrator screens
+│   ├── lab-03/                  Same five-document structure as lab-02, covering auth/RBAC/
+│   │                             IT Staff/Administrator screens
+│   └── lab-04/                  Same structure again, covering Actions Taken and role Dashboards
 ├── docker-compose.yml           Postgres in a container (host port 5433), persistent named volume
 ├── playwright.config.ts         E2E config (desktop/tablet/mobile projects, auto-starts client+server)
 ├── package.json                 Root project - Playwright only (client/server are separate npm projects)
@@ -92,6 +102,13 @@ main                  <- stable release (protected)
    chore/dockerize-postgres        <- dev-tooling, not a numbered Issue (see #43)
    feature/32-visual-qa-responsive-e2e
    feature/33-sprint3-release-integration
+ lab4-staging         <- Lab 4 integration branch
+   fix/46-lab3-finishing-touches    <- Lab 3 fixes found after release, landed via main before cutting lab4-staging
+   docs/48-sprint-4-specification
+   feature/51-actions-taken-foundation
+   feature/53-actions-taken-ui
+   feature/55-role-dashboards
+   feature/58-final-hardening
 ```
 
 Never commit directly to `main` or a `*-staging` branch. Each Issue is built on its own `feature/*`
@@ -123,8 +140,8 @@ run your own Postgres instance instead of Docker, just point `DATABASE_URL` at i
 cd server
 npm install
 cp .env.example .env    # edit DATABASE_URL if your Postgres isn't the Docker Compose one above
-npx prisma migrate dev  # applies all migrations (Category, User, Ticket, Attachment, ...)
-npm run seed             # idempotent: categories, related systems, seeded Users
+npx prisma migrate dev  # applies all migrations (Category, User, Ticket, Attachment, ActionTaken, ...)
+npm run seed             # idempotent: categories, related systems, seeded Users and Tickets
 npm run dev              # starts the API on http://localhost:4000
 ```
 
@@ -148,7 +165,7 @@ Run from the **repository root** (not `client/` or `server/`). The config auto-s
 ```
 npm install
 npx playwright install chromium   # one-time browser download
-npm test                           # runs e2e/{lab-02,lab-03}/*.spec.ts across desktop/tablet/mobile
+npm test                           # runs e2e/{lab-02,lab-03,lab-04}/*.spec.ts across desktop/tablet/mobile
 npm run test:report                # opens the HTML report from the last run
 ```
 
@@ -169,3 +186,8 @@ manual database intervention between runs.
 - [docs/lab-03/ui-spec.md](docs/lab-03/ui-spec.md) - UI spec for the auth, RBAC, IT Staff, and Administrator screens
 - [docs/lab-03/tests.md](docs/lab-03/tests.md) - Test plan, traceability, results, and the migration-safety evidence transcript
 - [docs/lab-03/reviewer.md](docs/lab-03/reviewer.md) / [ai-use.md](docs/lab-03/ai-use.md) - Lab 3 peer review + AI use log
+- [docs/lab-04/specification.md](docs/lab-04/specification.md) - Sprint 4 engineering specification
+- [docs/lab-04/api-spec.md](docs/lab-04/api-spec.md) - REST API contract (Actions Taken, Dashboards)
+- [docs/lab-04/ui-spec.md](docs/lab-04/ui-spec.md) - UI spec for Actions Taken and the role Dashboards
+- [docs/lab-04/tests.md](docs/lab-04/tests.md) - Test plan, traceability, results, and the reviewer-feedback audit
+- [docs/lab-04/reviewer.md](docs/lab-04/reviewer.md) / [ai-use.md](docs/lab-04/ai-use.md) - Lab 4 peer review + AI use log

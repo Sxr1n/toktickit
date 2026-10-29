@@ -49,6 +49,7 @@ test.describe('E2E-02: first login forces a password change (AC-01, AC-02)', () 
     await page.getByRole('button', { name: 'Continue' }).click()
 
     await page.waitForURL('/')
-    await expect(page.getByRole('heading', { name: 'TokTickIT IT Service Desk' })).toBeVisible()
+    // Lab 4 replaced the Lab 1 "Check System" scaffold at / with the role-routed Dashboard.
+    await expect(page.getByRole('heading', { name: /Welcome,/ })).toBeVisible()
   })
 })

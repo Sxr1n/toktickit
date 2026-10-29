@@ -217,6 +217,23 @@ describe('StaffTicketDetail - Actions Taken stale-edit conflict (UI-04)', () => 
   })
 })
 
+describe('StaffTicketDetail - Actions Taken load failure (reviewer follow-up on PR #54)', () => {
+  it('shows a safe error with Retry instead of a false "No actions taken yet" when the load fails', async () => {
+    renderStaff((url) => {
+      if (url.endsWith('/api/auth/me')) return jsonResponse(STAFF_USER)
+      if (url.endsWith('/api/staff/users')) return jsonResponse(STAFF_USERS)
+      if (url.endsWith('/api/tickets/1/public-comments')) return jsonResponse([])
+      if (url.endsWith('/api/staff/tickets/1/internal-notes')) return jsonResponse([])
+      if (url.endsWith('/api/staff/tickets/1/actions-taken')) return jsonResponse({ error: { code: 'INTERNAL_ERROR' } }, 500)
+      if (url.endsWith('/api/staff/tickets/1')) return jsonResponse(baseStaffTicket())
+      throw new Error(`Unexpected fetch to ${url}`)
+    })
+
+    expect(await screen.findByText(/Unable to load Actions Taken/)).toBeInTheDocument()
+    expect(screen.queryByText('No actions taken yet.')).not.toBeInTheDocument()
+  })
+})
+
 describe('RequesterTicketDetail - Actions Taken read-only (UI-05)', () => {
   it('renders the list with no Edit button and no form', async () => {
     renderRequester((url) => {
