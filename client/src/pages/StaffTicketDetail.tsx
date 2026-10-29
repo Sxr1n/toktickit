@@ -65,6 +65,35 @@ interface InternalNote {
   createdAt: string
 }
 
+interface ActionTaken {
+  id: number
+  performedById: number
+  performedByName: string
+  description: string
+  result: string
+  followUpRequired: boolean
+  followUpNote: string | null
+  attachmentNotes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+interface ActionDraft {
+  description: string
+  result: string
+  followUpRequired: boolean
+  followUpNote: string
+  attachmentNotes: string
+}
+
+const EMPTY_ACTION_DRAFT: ActionDraft = {
+  description: '',
+  result: '',
+  followUpRequired: false,
+  followUpNote: '',
+  attachmentNotes: '',
+}
+
 type LoadState = 'loading' | 'loaded' | 'not-found' | 'error'
 
 // Mirrors server/src/routes/staff.ts's TRANSITIONS -- the server is the authority (BR-21); this
@@ -100,6 +129,15 @@ export default function StaffTicketDetail() {
   const [noteSubmitting, setNoteSubmitting] = useState(false)
   const [noteError, setNoteError] = useState<string | null>(null)
 
+  const [actions, setActions] = useState<ActionTaken[]>([])
+  const [actionDraft, setActionDraft] = useState<ActionDraft>(EMPTY_ACTION_DRAFT)
+  const [actionSubmitting, setActionSubmitting] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [editingActionId, setEditingActionId] = useState<number | null>(null)
+  const [editDraft, setEditDraft] = useState<ActionDraft>(EMPTY_ACTION_DRAFT)
+  const [editSubmitting, setEditSubmitting] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
+
   const load = useCallback(() => {
     if (!id) return
     setState('loading')
@@ -131,6 +169,13 @@ export default function StaffTicketDetail() {
       .catch(() => {})
   }, [id])
 
+  const loadActions = useCallback(() => {
+    if (!id) return
+    apiGet<ActionTaken[]>(`/api/staff/tickets/${id}/actions-taken`)
+      .then(setActions)
+      .catch(() => {})
+  }, [id])
+
   useEffect(() => {
     load()
   }, [load])
@@ -142,6 +187,10 @@ export default function StaffTicketDetail() {
   useEffect(() => {
     loadNotes()
   }, [loadNotes])
+
+  useEffect(() => {
+    loadActions()
+  }, [loadActions])
 
   useEffect(() => {
     apiGet<StaffUser[]>('/api/staff/users')
@@ -240,6 +289,75 @@ export default function StaffTicketDetail() {
       setNoteError('Unable to post the Internal Note. Please try again.')
     } finally {
       setNoteSubmitting(false)
+    }
+  }
+
+  const handlePostAction = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!ticket) return
+
+    setActionSubmitting(true)
+    setActionError(null)
+    try {
+      await apiPost(`/api/staff/tickets/${ticket.id}/actions-taken`, {
+        description: actionDraft.description,
+        result: actionDraft.result,
+        followUpRequired: actionDraft.followUpRequired,
+        followUpNote: actionDraft.followUpRequired ? actionDraft.followUpNote : undefined,
+        attachmentNotes: actionDraft.attachmentNotes || undefined,
+      })
+      setActionDraft(EMPTY_ACTION_DRAFT)
+      loadActions()
+    } catch {
+      setActionError('Unable to save the Action Taken. Please check the fields and try again.')
+    } finally {
+      setActionSubmitting(false)
+    }
+  }
+
+  const handleStartEditAction = (a: ActionTaken) => {
+    setEditingActionId(a.id)
+    setEditError(null)
+    setEditDraft({
+      description: a.description,
+      result: a.result,
+      followUpRequired: a.followUpRequired,
+      followUpNote: a.followUpNote ?? '',
+      attachmentNotes: a.attachmentNotes ?? '',
+    })
+  }
+
+  const handleCancelEditAction = () => {
+    setEditingActionId(null)
+    setEditError(null)
+  }
+
+  const handleSaveEditAction = async (e: FormEvent, a: ActionTaken) => {
+    e.preventDefault()
+    if (!ticket) return
+
+    setEditSubmitting(true)
+    setEditError(null)
+    try {
+      await apiPatch(`/api/staff/tickets/${ticket.id}/actions-taken/${a.id}`, {
+        description: editDraft.description,
+        result: editDraft.result,
+        followUpRequired: editDraft.followUpRequired,
+        followUpNote: editDraft.followUpRequired ? editDraft.followUpNote : undefined,
+        attachmentNotes: editDraft.attachmentNotes || undefined,
+        updatedAt: a.updatedAt,
+      })
+      setEditingActionId(null)
+      loadActions()
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('status 409')) {
+        setEditError('This Action Taken was changed by someone else. Reloading the latest version.')
+        loadActions()
+      } else {
+        setEditError('Unable to save this Action Taken. Please check the fields and try again.')
+      }
+    } finally {
+      setEditSubmitting(false)
     }
   }
 
@@ -491,6 +609,215 @@ export default function StaffTicketDetail() {
               )}
               <button type="submit" className="btn btn-outline-dark" disabled={noteSubmitting}>
                 {noteSubmitting ? 'Posting...' : 'Post Internal Note'}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div className="row g-3 mt-1">
+        <div className="col-12">
+          <div className="p-3" style={{ backgroundColor: '#FFFFFF', border: '1px solid #e5e4e7', borderRadius: 8 }}>
+            <h2 className="h5">Actions Taken</h2>
+
+            {actions.length === 0 && <p>No actions taken yet.</p>}
+
+            {actions.length > 0 && (
+              <ul className="list-group mb-3">
+                {actions.map((a) =>
+                  editingActionId === a.id ? (
+                    <li key={a.id} className="list-group-item">
+                      <form onSubmit={(e) => handleSaveEditAction(e, a)}>
+                        <div className="mb-2">
+                          <label htmlFor={`edit-description-${a.id}`} className="form-label small text-muted">
+                            Description
+                          </label>
+                          <textarea
+                            id={`edit-description-${a.id}`}
+                            className="form-control"
+                            rows={2}
+                            value={editDraft.description}
+                            onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })}
+                          />
+                        </div>
+                        <div className="mb-2">
+                          <label htmlFor={`edit-result-${a.id}`} className="form-label small text-muted">
+                            Result
+                          </label>
+                          <textarea
+                            id={`edit-result-${a.id}`}
+                            className="form-control"
+                            rows={2}
+                            value={editDraft.result}
+                            onChange={(e) => setEditDraft({ ...editDraft, result: e.target.value })}
+                          />
+                        </div>
+                        <div className="form-check mb-2">
+                          <input
+                            type="checkbox"
+                            className="form-check-input"
+                            id={`edit-followup-${a.id}`}
+                            checked={editDraft.followUpRequired}
+                            onChange={(e) => setEditDraft({ ...editDraft, followUpRequired: e.target.checked })}
+                          />
+                          <label className="form-check-label" htmlFor={`edit-followup-${a.id}`}>
+                            Follow-Up Required
+                          </label>
+                        </div>
+                        {editDraft.followUpRequired && (
+                          <div className="mb-2">
+                            <label htmlFor={`edit-followup-note-${a.id}`} className="form-label small text-muted">
+                              Follow-up Note <span className="text-danger">*</span>
+                            </label>
+                            <textarea
+                              id={`edit-followup-note-${a.id}`}
+                              className="form-control"
+                              rows={2}
+                              value={editDraft.followUpNote}
+                              onChange={(e) => setEditDraft({ ...editDraft, followUpNote: e.target.value })}
+                            />
+                          </div>
+                        )}
+                        <div className="mb-2">
+                          <label htmlFor={`edit-attachment-notes-${a.id}`} className="form-label small text-muted">
+                            Attachment Notes
+                          </label>
+                          <input
+                            id={`edit-attachment-notes-${a.id}`}
+                            type="text"
+                            className="form-control"
+                            value={editDraft.attachmentNotes}
+                            onChange={(e) => setEditDraft({ ...editDraft, attachmentNotes: e.target.value })}
+                          />
+                        </div>
+                        {editError && (
+                          <p className="text-danger" role="alert">
+                            {editError}
+                          </p>
+                        )}
+                        <button type="submit" className="btn btn-primary btn-sm me-2" disabled={editSubmitting}>
+                          {editSubmitting ? 'Saving...' : 'Save'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-outline-secondary btn-sm"
+                          onClick={handleCancelEditAction}
+                        >
+                          Cancel
+                        </button>
+                      </form>
+                    </li>
+                  ) : (
+                    <li key={a.id} className="list-group-item">
+                      <div className="d-flex justify-content-between align-items-baseline">
+                        <strong>{a.performedByName}</strong>
+                        <span className="text-muted small">{new Date(a.createdAt).toLocaleString('en-US')}</span>
+                      </div>
+                      <div className="mt-1">
+                        <div className="text-muted small">Description</div>
+                        <div>{a.description}</div>
+                      </div>
+                      <div className="mt-1">
+                        <div className="text-muted small">Result</div>
+                        <div>{a.result}</div>
+                      </div>
+                      {a.followUpRequired && (
+                        <div className="mt-1">
+                          <span className="badge" style={{ backgroundColor: '#FBF2E0', color: '#9A6400' }}>
+                            Follow-Up Required
+                          </span>
+                          <div className="mt-1">{a.followUpNote}</div>
+                        </div>
+                      )}
+                      {a.attachmentNotes && (
+                        <div className="mt-1">
+                          <div className="text-muted small">Attachment Notes</div>
+                          <div>{a.attachmentNotes}</div>
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary btn-sm mt-2"
+                        onClick={() => handleStartEditAction(a)}
+                      >
+                        Edit
+                      </button>
+                    </li>
+                  ),
+                )}
+              </ul>
+            )}
+
+            <form onSubmit={handlePostAction}>
+              <div className="mb-2">
+                <label htmlFor="new-action-description" className="form-label">
+                  Description
+                </label>
+                <textarea
+                  id="new-action-description"
+                  className="form-control"
+                  rows={2}
+                  value={actionDraft.description}
+                  onChange={(e) => setActionDraft({ ...actionDraft, description: e.target.value })}
+                />
+              </div>
+              <div className="mb-2">
+                <label htmlFor="new-action-result" className="form-label">
+                  Result
+                </label>
+                <textarea
+                  id="new-action-result"
+                  className="form-control"
+                  rows={2}
+                  value={actionDraft.result}
+                  onChange={(e) => setActionDraft({ ...actionDraft, result: e.target.value })}
+                />
+              </div>
+              <div className="form-check mb-2">
+                <input
+                  type="checkbox"
+                  className="form-check-input"
+                  id="new-action-followup"
+                  checked={actionDraft.followUpRequired}
+                  onChange={(e) => setActionDraft({ ...actionDraft, followUpRequired: e.target.checked })}
+                />
+                <label className="form-check-label" htmlFor="new-action-followup">
+                  Follow-Up Required
+                </label>
+              </div>
+              {actionDraft.followUpRequired && (
+                <div className="mb-2">
+                  <label htmlFor="new-action-followup-note" className="form-label">
+                    Follow-up Note <span className="text-danger">*</span>
+                  </label>
+                  <textarea
+                    id="new-action-followup-note"
+                    className="form-control"
+                    rows={2}
+                    value={actionDraft.followUpNote}
+                    onChange={(e) => setActionDraft({ ...actionDraft, followUpNote: e.target.value })}
+                  />
+                </div>
+              )}
+              <div className="mb-2">
+                <label htmlFor="new-action-attachment-notes" className="form-label">
+                  Attachment Notes
+                </label>
+                <input
+                  id="new-action-attachment-notes"
+                  type="text"
+                  className="form-control"
+                  value={actionDraft.attachmentNotes}
+                  onChange={(e) => setActionDraft({ ...actionDraft, attachmentNotes: e.target.value })}
+                />
+              </div>
+              {actionError && (
+                <p className="text-danger" role="alert">
+                  {actionError}
+                </p>
+              )}
+              <button type="submit" className="btn btn-primary" disabled={actionSubmitting}>
+                {actionSubmitting ? 'Saving...' : 'Add Action Taken'}
               </button>
             </form>
           </div>
