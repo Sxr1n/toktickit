@@ -16,6 +16,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   const navLinks = user ? (
     <>
+      <Link className="nav-link text-white" to="/" onClick={() => setMenuOpen(false)}>
+        Dashboard
+      </Link>
       {user.role === 'REQUESTER' && (
         <>
           <Link className="nav-link text-white" to="/tickets" onClick={() => setMenuOpen(false)}>
