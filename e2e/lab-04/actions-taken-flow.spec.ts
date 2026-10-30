@@ -30,7 +30,8 @@ test.describe('E2E-01: Actions Taken full flow (AC-01, AC-02, AC-05, AC-06)', ()
     await page.getByRole('button', { name: 'Continue' }).click()
     await page.waitForURL('/')
 
-    await page.getByRole('link', { name: 'Create Ticket' }).click()
+    // The Requester Dashboard landing page also has its own "Create Ticket" CTA -- scope to nav.
+    await page.getByRole('navigation').getByRole('link', { name: 'Create Ticket' }).click()
     await page.getByLabel('Category').selectOption({ index: 1 })
     await page.getByLabel('Related System').selectOption({ index: 1 })
     await page.getByLabel('Requested Priority').selectOption('MEDIUM')
