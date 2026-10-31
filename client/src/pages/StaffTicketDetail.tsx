@@ -120,16 +120,19 @@ export default function StaffTicketDetail() {
   const [statusError, setStatusError] = useState<string | null>(null)
 
   const [comments, setComments] = useState<PublicComment[]>([])
+  const [commentsLoadFailed, setCommentsLoadFailed] = useState(false)
   const [commentBody, setCommentBody] = useState('')
   const [commentSubmitting, setCommentSubmitting] = useState(false)
   const [commentError, setCommentError] = useState<string | null>(null)
 
   const [notes, setNotes] = useState<InternalNote[]>([])
+  const [notesLoadFailed, setNotesLoadFailed] = useState(false)
   const [noteBody, setNoteBody] = useState('')
   const [noteSubmitting, setNoteSubmitting] = useState(false)
   const [noteError, setNoteError] = useState<string | null>(null)
 
   const [actions, setActions] = useState<ActionTaken[]>([])
+  const [actionsLoadFailed, setActionsLoadFailed] = useState(false)
   const [actionDraft, setActionDraft] = useState<ActionDraft>(EMPTY_ACTION_DRAFT)
   const [actionSubmitting, setActionSubmitting] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -157,23 +160,26 @@ export default function StaffTicketDetail() {
 
   const loadComments = useCallback(() => {
     if (!id) return
+    setCommentsLoadFailed(false)
     apiGet<PublicComment[]>(`/api/tickets/${id}/public-comments`)
       .then(setComments)
-      .catch(() => {})
+      .catch(() => setCommentsLoadFailed(true))
   }, [id])
 
   const loadNotes = useCallback(() => {
     if (!id) return
+    setNotesLoadFailed(false)
     apiGet<InternalNote[]>(`/api/staff/tickets/${id}/internal-notes`)
       .then(setNotes)
-      .catch(() => {})
+      .catch(() => setNotesLoadFailed(true))
   }, [id])
 
   const loadActions = useCallback(() => {
     if (!id) return
+    setActionsLoadFailed(false)
     apiGet<ActionTaken[]>(`/api/staff/tickets/${id}/actions-taken`)
       .then(setActions)
-      .catch(() => {})
+      .catch(() => setActionsLoadFailed(true))
   }, [id])
 
   useEffect(() => {
@@ -526,7 +532,15 @@ export default function StaffTicketDetail() {
           <div className="p-3 h-100" style={{ backgroundColor: '#EAF6EF', borderRadius: 8 }}>
             <h2 className="h5">Public Comments</h2>
 
-            {comments.length === 0 && <p>No comments yet.</p>}
+            {commentsLoadFailed && (
+              <p className="text-danger" role="alert">
+                Unable to load Public Comments.{' '}
+                <button type="button" className="btn btn-link p-0" onClick={loadComments}>
+                  Retry
+                </button>
+              </p>
+            )}
+            {!commentsLoadFailed && comments.length === 0 && <p>No comments yet.</p>}
 
             {comments.length > 0 && (
               <ul className="list-group mb-3">
@@ -575,7 +589,15 @@ export default function StaffTicketDetail() {
             <h2 className="h5">Internal Notes</h2>
             <p className="small text-muted mb-2">Internal — not visible to Requester</p>
 
-            {notes.length === 0 && <p>No internal notes yet.</p>}
+            {notesLoadFailed && (
+              <p className="text-danger" role="alert">
+                Unable to load Internal Notes.{' '}
+                <button type="button" className="btn btn-link p-0" onClick={loadNotes}>
+                  Retry
+                </button>
+              </p>
+            )}
+            {!notesLoadFailed && notes.length === 0 && <p>No internal notes yet.</p>}
 
             {notes.length > 0 && (
               <ul className="list-group mb-3">
@@ -620,7 +642,15 @@ export default function StaffTicketDetail() {
           <div className="p-3" style={{ backgroundColor: '#FFFFFF', border: '1px solid #e5e4e7', borderRadius: 8 }}>
             <h2 className="h5">Actions Taken</h2>
 
-            {actions.length === 0 && <p>No actions taken yet.</p>}
+            {actionsLoadFailed && (
+              <p className="text-danger" role="alert">
+                Unable to load Actions Taken.{' '}
+                <button type="button" className="btn btn-link p-0" onClick={loadActions}>
+                  Retry
+                </button>
+              </p>
+            )}
+            {!actionsLoadFailed && actions.length === 0 && <p>No actions taken yet.</p>}
 
             {actions.length > 0 && (
               <ul className="list-group mb-3">

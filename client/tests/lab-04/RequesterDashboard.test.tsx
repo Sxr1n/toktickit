@@ -96,6 +96,19 @@ describe('RequesterDashboard - attention-required callout (UI-10)', () => {
   })
 })
 
+describe('RequesterDashboard - failure state (reviewer follow-up on PR #56)', () => {
+  it('shows a safe failure message with Retry when the dashboard fails to load', async () => {
+    renderDashboard((url) => {
+      if (url.endsWith('/api/auth/me')) return jsonResponse(CURRENT_USER)
+      if (url.endsWith('/api/dashboard/requester')) return jsonResponse({ error: { code: 'INTERNAL_ERROR' } }, 500)
+      throw new Error(`Unexpected fetch to ${url}`)
+    })
+
+    expect(await screen.findByText('Unable to load the Dashboard.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+  })
+})
+
 describe('RequesterDashboard - empty state (AC-10)', () => {
   it('shows a Create Ticket call to action when the caller has zero Tickets', async () => {
     renderDashboard((url) => {

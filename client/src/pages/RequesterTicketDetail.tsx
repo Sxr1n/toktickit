@@ -64,6 +64,7 @@ export default function RequesterTicketDetail() {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const [comments, setComments] = useState<PublicComment[]>([])
+  const [commentsLoadFailed, setCommentsLoadFailed] = useState(false)
   const [commentBody, setCommentBody] = useState('')
   const [commentSubmitting, setCommentSubmitting] = useState(false)
   const [commentError, setCommentError] = useState<string | null>(null)
@@ -71,6 +72,7 @@ export default function RequesterTicketDetail() {
   const [confirmingResolved, setConfirmingResolved] = useState(false)
 
   const [actions, setActions] = useState<ActionTaken[]>([])
+  const [actionsLoadFailed, setActionsLoadFailed] = useState(false)
 
   const load = useCallback(() => {
     if (!user || !id) return
@@ -91,9 +93,10 @@ export default function RequesterTicketDetail() {
 
   const loadComments = useCallback(() => {
     if (!user || !id) return
+    setCommentsLoadFailed(false)
     apiGet<PublicComment[]>(`/api/tickets/${id}/public-comments`)
       .then(setComments)
-      .catch(() => {})
+      .catch(() => setCommentsLoadFailed(true))
   }, [user, id])
 
   useEffect(() => {
@@ -106,9 +109,10 @@ export default function RequesterTicketDetail() {
 
   const loadActions = useCallback(() => {
     if (!user || !id) return
+    setActionsLoadFailed(false)
     apiGet<ActionTaken[]>(`/api/tickets/${id}/actions-taken`)
       .then(setActions)
-      .catch(() => {})
+      .catch(() => setActionsLoadFailed(true))
   }, [user, id])
 
   useEffect(() => {
@@ -339,7 +343,15 @@ export default function RequesterTicketDetail() {
 
       <h2>Public Comments</h2>
 
-      {comments.length === 0 && <p>No comments yet.</p>}
+      {commentsLoadFailed && (
+        <p className="text-danger" role="alert">
+          Unable to load Public Comments.{' '}
+          <button type="button" className="btn btn-link p-0" onClick={loadComments}>
+            Retry
+          </button>
+        </p>
+      )}
+      {!commentsLoadFailed && comments.length === 0 && <p>No comments yet.</p>}
 
       {comments.length > 0 && (
         <ul className="list-group mb-3">
@@ -385,7 +397,15 @@ export default function RequesterTicketDetail() {
 
       <h2>Actions Taken</h2>
 
-      {actions.length === 0 && <p>No actions taken yet.</p>}
+      {actionsLoadFailed && (
+        <p className="text-danger" role="alert">
+          Unable to load Actions Taken.{' '}
+          <button type="button" className="btn btn-link p-0" onClick={loadActions}>
+            Retry
+          </button>
+        </p>
+      )}
+      {!actionsLoadFailed && actions.length === 0 && <p>No actions taken yet.</p>}
 
       {actions.length > 0 && (
         <ul className="list-group mb-4">

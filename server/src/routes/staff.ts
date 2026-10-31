@@ -368,7 +368,7 @@ function serializeAction(a: Prisma.ActionTakenGetPayload<{ include: { performedB
 
 // BR-03/BR-04/BR-05: shared by create and edit. Returns either the validated fields or a message to
 // send back as 400 VALIDATION_FAILED.
-function validateActionBody(body: unknown):
+export function validateActionBody(body: unknown):
   | { ok: true; description: string; result: string; followUpRequired: boolean; followUpNote: string | null; attachmentNotes: string | null }
   | { ok: false; message: string } {
   const b = (body ?? {}) as Record<string, unknown>
