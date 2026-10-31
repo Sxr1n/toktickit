@@ -3,13 +3,13 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import 'bootstrap/dist/css/bootstrap.min.css'
 import './index.css'
-import App from './App.tsx'
 import AppShell from './components/AppShell.tsx'
 import RequireAuth from './components/RequireAuth.tsx'
 import RequireRole from './components/RequireRole.tsx'
 import { AuthProvider } from './context/AuthContext.tsx'
 import ChangePassword from './pages/ChangePassword.tsx'
 import CreateTicket from './pages/CreateTicket.tsx'
+import Home from './pages/Home.tsx'
 import Login from './pages/Login.tsx'
 import MyTickets from './pages/MyTickets.tsx'
 import RequesterTicketDetail from './pages/RequesterTicketDetail.tsx'
@@ -23,7 +23,7 @@ createRoot(document.getElementById('root')!).render(
       <AuthProvider>
         <AppShell>
           <Routes>
-            <Route path="/" element={<App />} />
+            <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route
               path="/change-password"

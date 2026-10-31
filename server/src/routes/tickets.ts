@@ -282,4 +282,40 @@ router.patch('/tickets/:id/confirm-resolved', ...requireRequesterAuth, async (re
   res.json(updated)
 })
 
+// BR-07: a Requester may only read Actions Taken on a Ticket they own. No create/edit route exists
+// for this role at all -- true by construction, same technique already used for Internal Notes.
+router.get('/tickets/:id/actions-taken', ...requireRequesterAuth, async (req, res) => {
+  const ticketId = Number(req.params.id)
+  if (!Number.isInteger(ticketId)) {
+    return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
+  }
+
+  const ticket = await findOwnedTicket(ticketId, req.user!.id)
+  if (!ticket) {
+    return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
+  }
+
+  const actions = await prisma.actionTaken.findMany({
+    where: { ticketId },
+    orderBy: { id: 'asc' },
+    include: { performedBy: { select: { name: true } } },
+  })
+
+  res.json(
+    actions.map((a) => ({
+      id: a.id,
+      ticketId: a.ticketId,
+      performedById: a.performedById,
+      performedByName: a.performedBy.name,
+      description: a.description,
+      result: a.result,
+      followUpRequired: a.followUpRequired,
+      followUpNote: a.followUpNote,
+      attachmentNotes: a.attachmentNotes,
+      createdAt: a.createdAt,
+      updatedAt: a.updatedAt,
+    })),
+  )
+})
+
 export default router

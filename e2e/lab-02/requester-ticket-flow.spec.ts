@@ -102,7 +102,9 @@ test.describe('E2E-02: Requester ownership isolation across real sessions', () =
     const requesterB = await createThrowawayRequester(request, 'isolation-b')
 
     await loginAsRequester(page, requesterA.email)
-    await page.getByRole('link', { name: 'Create Ticket' }).click()
+    // Lab 4's Requester Dashboard (now the post-login landing page) shows its own "Create
+    // Ticket" CTA alongside the persistent nav link of the same name -- scope to the nav one.
+    await page.getByRole('navigation').getByRole('link', { name: 'Create Ticket' }).click()
     await page.getByLabel('Category').selectOption({ index: 1 })
     await page.getByLabel('Related System').selectOption({ index: 1 })
     await page.getByLabel('Requested Priority').selectOption('LOW')

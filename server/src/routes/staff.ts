@@ -350,4 +350,160 @@ router.post('/staff/tickets/:id/internal-notes', ...requireStaffAuth, async (req
   })
 })
 
+function serializeAction(a: Prisma.ActionTakenGetPayload<{ include: { performedBy: { select: { name: true } } } }>) {
+  return {
+    id: a.id,
+    ticketId: a.ticketId,
+    performedById: a.performedById,
+    performedByName: a.performedBy.name,
+    description: a.description,
+    result: a.result,
+    followUpRequired: a.followUpRequired,
+    followUpNote: a.followUpNote,
+    attachmentNotes: a.attachmentNotes,
+    createdAt: a.createdAt,
+    updatedAt: a.updatedAt,
+  }
+}
+
+// BR-03/BR-04/BR-05: shared by create and edit. Returns either the validated fields or a message to
+// send back as 400 VALIDATION_FAILED.
+export function validateActionBody(body: unknown):
+  | { ok: true; description: string; result: string; followUpRequired: boolean; followUpNote: string | null; attachmentNotes: string | null }
+  | { ok: false; message: string } {
+  const b = (body ?? {}) as Record<string, unknown>
+
+  const description = typeof b.description === 'string' ? b.description.trim() : ''
+  if (description.length < 3 || description.length > 2000) {
+    return { ok: false, message: 'Description must be 3-2000 characters.' }
+  }
+
+  const result = typeof b.result === 'string' ? b.result.trim() : ''
+  if (result.length < 3 || result.length > 2000) {
+    return { ok: false, message: 'Result must be 3-2000 characters.' }
+  }
+
+  if (typeof b.followUpRequired !== 'boolean') {
+    return { ok: false, message: 'followUpRequired must be a boolean.' }
+  }
+  const followUpRequired = b.followUpRequired
+
+  let followUpNote: string | null = null
+  if (followUpRequired) {
+    const note = typeof b.followUpNote === 'string' ? b.followUpNote.trim() : ''
+    if (note.length < 3 || note.length > 2000) {
+      return { ok: false, message: 'Follow-up Note must be 3-2000 characters when Follow-Up Required is set.' }
+    }
+    followUpNote = note
+  }
+
+  let attachmentNotes: string | null = null
+  if (b.attachmentNotes !== undefined && b.attachmentNotes !== null && b.attachmentNotes !== '') {
+    const notes = typeof b.attachmentNotes === 'string' ? b.attachmentNotes.trim() : ''
+    if (notes.length > 500) {
+      return { ok: false, message: 'Attachment Notes must be 500 characters or fewer.' }
+    }
+    attachmentNotes = notes
+  }
+
+  return { ok: true, description, result, followUpRequired, followUpNote, attachmentNotes }
+}
+
+router.get('/staff/tickets/:id/actions-taken', ...requireStaffAuth, async (req, res) => {
+  const ticketId = Number(req.params.id)
+  if (!Number.isInteger(ticketId)) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
+
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } })
+  if (!ticket) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
+
+  const actions = await prisma.actionTaken.findMany({
+    where: { ticketId },
+    orderBy: { id: 'asc' },
+    include: { performedBy: { select: { name: true } } },
+  })
+
+  res.json(actions.map(serializeAction))
+})
+
+router.post('/staff/tickets/:id/actions-taken', ...requireStaffAuth, async (req, res) => {
+  const ticketId = Number(req.params.id)
+  if (!Number.isInteger(ticketId)) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
+
+  const validated = validateActionBody(req.body)
+  if (!validated.ok) return res.status(400).json(validationError(validated.message))
+
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } })
+  if (!ticket) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Ticket not found.' } })
+
+  const action = await prisma.actionTaken.create({
+    data: {
+      ticketId,
+      performedById: req.user!.id,
+      description: validated.description,
+      result: validated.result,
+      followUpRequired: validated.followUpRequired,
+      followUpNote: validated.followUpNote,
+      attachmentNotes: validated.attachmentNotes,
+    },
+    include: { performedBy: { select: { name: true } } },
+  })
+
+  res.status(201).json(serializeAction(action))
+})
+
+router.patch('/staff/tickets/:id/actions-taken/:actionId', ...requireStaffAuth, async (req, res) => {
+  const ticketId = Number(req.params.id)
+  const actionId = Number(req.params.actionId)
+  if (!Number.isInteger(ticketId) || !Number.isInteger(actionId)) {
+    return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Action Taken not found.' } })
+  }
+
+  const existing = await prisma.actionTaken.findUnique({ where: { id: actionId } })
+  if (!existing || existing.ticketId !== ticketId) {
+    return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Action Taken not found.' } })
+  }
+
+  const validated = validateActionBody(req.body)
+  if (!validated.ok) return res.status(400).json(validationError(validated.message))
+
+  const staleToken = (req.body as Record<string, unknown> | undefined)?.updatedAt
+  if (typeof staleToken !== 'string') {
+    return res.status(400).json(validationError('updatedAt is required to edit an Action Taken.'))
+  }
+  const suppliedUpdatedAt = new Date(staleToken)
+  if (Number.isNaN(suppliedUpdatedAt.getTime())) {
+    return res.status(400).json(validationError('updatedAt must be a valid date.'))
+  }
+
+  // BR-08: updatedAt-based optimistic concurrency. A conditional UPDATE that matches zero rows means
+  // someone else edited this Action Taken since the client last read it.
+  const result = await prisma.actionTaken.updateMany({
+    where: { id: actionId, ticketId, updatedAt: suppliedUpdatedAt },
+    data: {
+      description: validated.description,
+      result: validated.result,
+      followUpRequired: validated.followUpRequired,
+      followUpNote: validated.followUpNote,
+      attachmentNotes: validated.attachmentNotes,
+    },
+  })
+
+  if (result.count === 0) {
+    const current = await prisma.actionTaken.findUnique({ where: { id: actionId } })
+    return res.status(409).json({
+      error: {
+        code: 'CONFLICT',
+        message: 'This Action Taken was changed by someone else. Please reload and try again.',
+        details: { currentUpdatedAt: current?.updatedAt ?? null },
+      },
+    })
+  }
+
+  const updated = await prisma.actionTaken.findUniqueOrThrow({
+    where: { id: actionId },
+    include: { performedBy: { select: { name: true } } },
+  })
+  res.json(serializeAction(updated))
+})
+
 export default router

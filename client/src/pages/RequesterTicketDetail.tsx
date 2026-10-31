@@ -39,6 +39,17 @@ interface PublicComment {
   createdAt: string
 }
 
+interface ActionTaken {
+  id: number
+  performedByName: string
+  description: string
+  result: string
+  followUpRequired: boolean
+  followUpNote: string | null
+  attachmentNotes: string | null
+  createdAt: string
+}
+
 type LoadState = 'loading' | 'loaded' | 'not-found' | 'error'
 
 export default function RequesterTicketDetail() {
@@ -53,11 +64,15 @@ export default function RequesterTicketDetail() {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const [comments, setComments] = useState<PublicComment[]>([])
+  const [commentsLoadFailed, setCommentsLoadFailed] = useState(false)
   const [commentBody, setCommentBody] = useState('')
   const [commentSubmitting, setCommentSubmitting] = useState(false)
   const [commentError, setCommentError] = useState<string | null>(null)
 
   const [confirmingResolved, setConfirmingResolved] = useState(false)
+
+  const [actions, setActions] = useState<ActionTaken[]>([])
+  const [actionsLoadFailed, setActionsLoadFailed] = useState(false)
 
   const load = useCallback(() => {
     if (!user || !id) return
@@ -78,9 +93,10 @@ export default function RequesterTicketDetail() {
 
   const loadComments = useCallback(() => {
     if (!user || !id) return
+    setCommentsLoadFailed(false)
     apiGet<PublicComment[]>(`/api/tickets/${id}/public-comments`)
       .then(setComments)
-      .catch(() => {})
+      .catch(() => setCommentsLoadFailed(true))
   }, [user, id])
 
   useEffect(() => {
@@ -90,6 +106,18 @@ export default function RequesterTicketDetail() {
   useEffect(() => {
     loadComments()
   }, [loadComments])
+
+  const loadActions = useCallback(() => {
+    if (!user || !id) return
+    setActionsLoadFailed(false)
+    apiGet<ActionTaken[]>(`/api/tickets/${id}/actions-taken`)
+      .then(setActions)
+      .catch(() => setActionsLoadFailed(true))
+  }, [user, id])
+
+  useEffect(() => {
+    loadActions()
+  }, [loadActions])
 
   const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -315,7 +343,15 @@ export default function RequesterTicketDetail() {
 
       <h2>Public Comments</h2>
 
-      {comments.length === 0 && <p>No comments yet.</p>}
+      {commentsLoadFailed && (
+        <p className="text-danger" role="alert">
+          Unable to load Public Comments.{' '}
+          <button type="button" className="btn btn-link p-0" onClick={loadComments}>
+            Retry
+          </button>
+        </p>
+      )}
+      {!commentsLoadFailed && comments.length === 0 && <p>No comments yet.</p>}
 
       {comments.length > 0 && (
         <ul className="list-group mb-3">
@@ -356,6 +392,55 @@ export default function RequesterTicketDetail() {
           {commentSubmitting ? 'Posting...' : 'Post Comment'}
         </button>
       </form>
+
+      <hr className="my-4" />
+
+      <h2>Actions Taken</h2>
+
+      {actionsLoadFailed && (
+        <p className="text-danger" role="alert">
+          Unable to load Actions Taken.{' '}
+          <button type="button" className="btn btn-link p-0" onClick={loadActions}>
+            Retry
+          </button>
+        </p>
+      )}
+      {!actionsLoadFailed && actions.length === 0 && <p>No actions taken yet.</p>}
+
+      {actions.length > 0 && (
+        <ul className="list-group mb-4">
+          {actions.map((a) => (
+            <li key={a.id} className="list-group-item">
+              <div className="d-flex justify-content-between align-items-baseline">
+                <strong>{a.performedByName}</strong>
+                <span className="text-muted small">{new Date(a.createdAt).toLocaleString('en-US')}</span>
+              </div>
+              <div className="mt-1">
+                <div className="text-muted small">Description</div>
+                <div>{a.description}</div>
+              </div>
+              <div className="mt-1">
+                <div className="text-muted small">Result</div>
+                <div>{a.result}</div>
+              </div>
+              {a.followUpRequired && (
+                <div className="mt-1">
+                  <span className="badge" style={{ backgroundColor: '#FBF2E0', color: '#9A6400' }}>
+                    Follow-Up Required
+                  </span>
+                  <div className="mt-1">{a.followUpNote}</div>
+                </div>
+              )}
+              {a.attachmentNotes && (
+                <div className="mt-1">
+                  <div className="text-muted small">Attachment Notes</div>
+                  <div>{a.attachmentNotes}</div>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
 
       <hr className="my-4" />
 
