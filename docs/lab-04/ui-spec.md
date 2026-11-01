@@ -21,7 +21,10 @@ geometry, same editable/read-only/disabled/error field states, same responsive b
 - Adds one `Dashboard` nav link, visible to every authenticated role (Requester, IT Staff,
   Administrator alike), placed first in the role-conditional nav block in `AppShell.tsx`, pointing at
   `/`.
-- No other shell change.
+- Active-page indication (added in Issue #61): every nav item is a `NavLink`, so the current page's
+  item gets `aria-current="page"` and is shown **bold and underlined** (`nav .nav-link.active` in
+  `index.css`) — a cue that does not rely on colour. `Dashboard` matches `/` exactly (`end`); `My
+  Queue`/`My Tickets` stay active on their Ticket Detail sub-pages.
 
 ## 3. Home (`/`)
 
@@ -47,12 +50,18 @@ status (My Assigned links to the Queue filtered to `ticketOwnerId=<self>`).
 Number, Summary, Status badge, updated date — each row linking to its Ticket Detail. "View all" links
 to the full Ticket Queue.
 
-**Quick Actions**: plain `btn btn-primary`/`btn-outline-dark` links to Create Ticket and the Ticket
-Queue, matching the labsheet Figure.
+**My Recent Actions Taken** (FR-14): a `list-group` of the caller's own 5 most recent Actions Taken —
+Ticket Number, Action Description, a "Follow-Up Required" badge (same amber token as Ticket Detail)
+when set, created date — each row linking to its Ticket Detail. Empty: "You haven't recorded any
+Actions Taken yet."
 
-States: loading (skeleton tiles, same pattern as the Ticket Queue's own loading state), loaded, empty
-(a tile legitimately at 0 renders "0" plus its label, never blank — only the Recent Tickets list gets a
-dedicated "No tickets yet." empty-state message), forbidden (non-staff direct-navigating here never
+**Quick Actions**: a single `btn btn-primary` "Search Tickets" link to the Ticket Queue. The Figure
+also shows "Create Ticket", but Create Ticket is a Requester-only route (Lab 2/3 RBAC), so it is
+deliberately omitted for IT Staff rather than shown as a link that would be forbidden.
+
+States: loading (a "Loading..." line, the same pattern every other screen in this app uses), loaded,
+empty (a tile legitimately at 0 renders "0" plus its label, never blank — the Recent Tickets and My
+Recent Actions Taken lists each get a dedicated empty-state message), forbidden (non-staff direct-navigating here never
 happens, since `/` is role-routed, not role-gated-and-blocked — a Requester simply sees their own
 Dashboard instead), failure (safe message + Retry, same pattern as the Ticket Queue).
 
@@ -119,25 +128,36 @@ focusable, not a `<div onClick>`), each with an `aria-label` naming both the met
 Actions Taken Follow-up Note field's conditional appearance is announced via `aria-live="polite"` on
 the form region, mirroring the Change Password rule-checklist pattern from Lab 3.
 
-## 9. Visual inspection checklist
+## 9. Visual and accessibility checklist (completed)
 
-Performed at 1440×900, 820×1024, 390×844 against the screenshots in `artifacts/lab-04/screenshots/`.
+Checked against the real running app at desktop 1280×800, tablet 834×1194 and mobile 390×844, using
+the screenshots in `artifacts/lab-04/screenshots/` plus the report's state captures (Issue #61). "Auto"
+means an automated assertion also covers it.
 
-- Dashboard metric tiles use the same tokens/geometry as existing Ticket Detail info cards.
-- Dashboard links are real keyboard-focusable elements with visible focus, not divs.
-- Actions Taken section is visually distinct from both Public Comments and Internal Notes, not
-  confusable with either.
-- Follow-up Note field appears/disappears correctly with Follow-Up Required, with no layout jump that
-  clips or overlaps adjacent content.
-- No clipping, overlap, or horizontal scrolling on any new screen at any breakpoint.
-- No leftover Lab 1 scaffold content reachable from any authenticated or unauthenticated navigation
-  path.
+| # | Check | Result | Evidence |
+|---|---|---|---|
+| 1 | Design consistency: dashboard tiles, lists and badges reuse the Lab 2/3 tokens (tinted card `#F8F9F6`, Zen Green buttons, status badges) | Pass | Staff/Requester Dashboard screenshots at all 3 viewports |
+| 2 | Dashboards: every tile shows a label + number and is a real link to a filtered/detail view; Requester tiles scoped to own Tickets | Pass (Auto) | `StaffDashboard.test.tsx`, `RequesterDashboard.test.tsx`, `dashboards.spec.ts` drill-down; API-19 counts = SQL |
+| 3 | Dashboards: loading, empty, safe-failure + Retry states render (never blank) | Pass (Auto) | UI-08, UI-10, Requester failure test; loading/empty/failure captures |
+| 4 | Actions Taken visually distinct from Public Comments (pale green) and Internal Notes (beige, "not visible to Requester") | Pass | Staff Ticket Detail full-page capture |
+| 5 | Editable vs read-only: Staff sees the create form and Edit per item; Requester sees the same items with no form, no Edit, no status control | Pass (Auto) | UI-05, UI-06, E2E-01 (`Edit` count 0 for Requester) |
+| 6 | Follow-up Note shows/hides with Follow-Up Required, marked required with `*`, no layout jump | Pass (Auto) | UI-02; validation capture |
+| 7 | Validation placement: error appears directly above the submit button and the entered values are kept | Pass, with limitation | E2E-02; validation capture. **Limitation:** the message is generic ("check the fields") and does not name the Follow-up Note field, although the server's response does |
+| 8 | Keyboard focus: tiles, list rows, nav links and buttons are real `<a>`/`<button>` elements reachable by Tab with a visible focus outline | Pass | Keyboard-focus capture (Tab to the "Open" tile) |
+| 9 | Active page shown in the nav without relying on colour (bold + underline, `aria-current`) | Pass (Auto) | `AppShell.test.tsx` active-page tests (UI-13) |
+| 10 | Status and priority conveyed by text inside the badge, not colour alone | Pass | Every badge prints its value (e.g. `IN_PROGRESS`, `HIGH`) |
+| 11 | No clipping or overlap: long summaries wrap inside list rows; tiles reflow 5→2 columns on mobile | Pass | Mobile captures of both dashboards and Actions Taken |
+| 12 | No horizontal page scroll on any Lab 4 screen at any viewport | Pass (Auto) | `visual-checklist.spec.ts` asserts `scrollWidth <= clientWidth` at 3 viewports |
+| 13 | No leftover Lab 1 scaffold reachable from any navigation path | Pass (Auto) | UI-11, E2E-04 (unauthenticated `/` → Login) |
 
 ## 10. Screenshot paths
 
 ```
 artifacts/lab-04/screenshots/
-├── staff-dashboard/     loaded, empty, failure, responsive
-├── requester-dashboard/ loaded, empty, attention-required present/absent, responsive
-└── actions-taken/       list, create, edit, validation, stale-conflict, responsive
+├── staff-dashboard/     desktop.png, tablet.png, mobile.png
+├── requester-dashboard/ desktop.png, tablet.png, mobile.png
+└── actions-taken/       desktop.png, tablet.png, mobile.png
 ```
+
+State captures (loading, empty, failure, validation, stale-update conflict, forbidden, drill-downs)
+are produced against the running app for the submission report rather than committed here.

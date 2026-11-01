@@ -1,8 +1,9 @@
+import bcrypt from 'bcryptjs'
 import { beforeAll, describe, expect, it } from 'vitest'
 import request from 'supertest'
 import app from '../../src/app'
 import { prisma } from '../../src/prisma'
-import { loginAs } from '../helpers/testAuth'
+import { DEV_PASSWORD, loginAs } from '../helpers/testAuth'
 
 let staffCookie: string
 let staffId: number
@@ -48,7 +49,7 @@ beforeAll(async () => {
   ])
 })
 
-describe('GET /api/dashboard/staff - role gate', () => {
+describe('GET /api/dashboard/staff - role gate (API-24, API-25)', () => {
   it('rejects a Requester with 403', async () => {
     const res = await request(app).get('/api/dashboard/staff').set('Cookie', requesterCookie)
     expect(res.status).toBe(403)
@@ -81,7 +82,7 @@ describe('GET /api/dashboard/staff - counts match direct queries (API-19, AC-09)
   })
 })
 
-describe('GET /api/dashboard/staff - system-wide, not owner-scoped (API-20, BR-13)', () => {
+describe('GET /api/dashboard/staff - system-wide, not owner-scoped (API-20, API-21, BR-13)', () => {
   it('counts include Tickets owned by a different Staff member', async () => {
     const otherStaff = await prisma.user.findFirstOrThrow({
       where: { isActive: true, role: 'IT_STAFF', id: { not: staffId } },
@@ -135,6 +136,56 @@ describe('GET /api/dashboard/staff - every count key always present (API-22)', (
     const res = await request(app).get('/api/dashboard/staff').set('Cookie', staffCookie)
     for (const key of ['new', 'open', 'inProgress', 'waitingForRequester', 'myAssigned'] as const) {
       expect(typeof res.body.counts[key]).toBe('number')
+    }
+  })
+})
+
+describe('GET /api/dashboard/staff - myRecentActions (API-32, AC-13, BR-15)', () => {
+  it("returns only the caller's own Actions Taken, newest first, at most 5", async () => {
+    // Dedicated Staff user so parallel test files recording Actions as a seeded user can't interleave.
+    const email = `dash-actions-${Date.now()}@example.com`
+    const freshStaff = await prisma.user.create({
+      data: { name: 'Dashboard Actions Staff', email, passwordHash: await bcrypt.hash(DEV_PASSWORD, 10), role: 'IT_STAFF', isActive: true },
+    })
+    const freshCookie = await loginAs(app, email)
+
+    const empty = await request(app).get('/api/dashboard/staff').set('Cookie', freshCookie)
+    expect(empty.body.myRecentActions).toEqual([])
+
+    const ticket = await prisma.ticket.findFirstOrThrow({ where: { summary: `${MARKER} ticket` } })
+    const created = []
+    for (let i = 0; i < 6; i++) {
+      created.push(
+        await prisma.actionTaken.create({
+          data: { ticketId: ticket.id, performedById: freshStaff.id, description: `${MARKER} mine ${i}`, result: 'Done.' },
+        }),
+      )
+    }
+    const theirs = await prisma.actionTaken.create({
+      data: { ticketId: ticket.id, performedById: staffId, description: `${MARKER} theirs`, result: 'Done.' },
+    })
+
+    const res = await request(app).get('/api/dashboard/staff').set('Cookie', freshCookie)
+    const ids = res.body.myRecentActions.map((a: { id: number }) => a.id)
+
+    expect(ids).toEqual(created.slice(1).reverse().map((a) => a.id))
+    expect(ids).not.toContain(theirs.id)
+    expect(res.body.myRecentActions[0]).toMatchObject({ ticketId: ticket.id, ticketNumber: ticket.ticketNumber })
+  })
+})
+
+describe('Dashboard performance smoke (PERF-01)', () => {
+  // shortcut: a single-request latency ceiling against the shared dev DB, not a load test; upgrade to k6/autocannon if dashboards ever need SLA evidence.
+  it('both dashboard endpoints respond within 1000 ms against the full dev dataset', async () => {
+    for (const [path, cookie] of [
+      ['/api/dashboard/staff', staffCookie],
+      ['/api/dashboard/requester', requesterCookie],
+    ] as const) {
+      const start = performance.now()
+      const res = await request(app).get(path).set('Cookie', cookie)
+      const elapsed = performance.now() - start
+      expect(res.status).toBe(200)
+      expect(elapsed).toBeLessThan(1000)
     }
   })
 })

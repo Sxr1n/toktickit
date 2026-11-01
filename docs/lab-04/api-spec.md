@@ -63,6 +63,9 @@ technique already used to keep Internal Notes unreachable by Requesters.
     "counts": { "new": 0, "open": 0, "inProgress": 0, "waitingForRequester": 0, "myAssigned": 0 },
     "recentTickets": [
       { "id": 1, "ticketNumber": "TKT-2026-000001", "summary": "...", "currentStatus": "OPEN", "itPriority": "MEDIUM", "ticketOwnerName": null, "updatedAt": "..." }
+    ],
+    "myRecentActions": [
+      { "id": 5, "ticketId": 1, "ticketNumber": "TKT-2026-000001", "description": "...", "followUpRequired": false, "createdAt": "..." }
     ]
   }
   ```
@@ -71,6 +74,8 @@ technique already used to keep Internal Notes unreachable by Requesters.
   `ticketOwnerId` equals the caller's id, independent of status.
 - `recentTickets` is the 10 most recently updated Tickets system-wide, newest first — a drill-down
   preview, not a replacement for the Ticket Queue.
+- `myRecentActions` (BR-15) is the caller's own 5 most recent Actions Taken (`performedById` = caller,
+  any Ticket Owner), newest `createdAt` first; `[]` when the caller has recorded none.
 - Each count is independently 0 when nothing matches (never omitted from the response).
 
 ### GET /api/dashboard/requester

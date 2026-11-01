@@ -100,6 +100,9 @@ obligations:
   Requester (the attention-required callout), and a list of that Requester's recently updated Tickets,
   each linking to its own Ticket Detail.
 - FR-11 The system shall let an Administrator view the same dashboard as IT Staff.
+- FR-14 The system shall show, on the IT Staff Dashboard, the caller's own 5 most recent Actions Taken
+  ("My Recent Actions Taken"), each linking to its Ticket Detail. *(Added in Issue #61 after
+  report-preparation review found the labsheet's Part 5 "current-user Actions Taken" item uncovered.)*
 - FR-12 The system shall route the authenticated home screen (`/`) to the dashboard appropriate for
   the caller's role, and to Login for an unauthenticated visitor.
 
@@ -155,6 +158,9 @@ obligations:
   Lab 3).
 - BR-14 A dashboard list or count with no matching Tickets renders an explicit empty state, never a
   blank section or a loading spinner left stuck.
+- BR-15 "My Recent Actions Taken" is scoped by `performedById = caller`, not by Ticket Owner — an IT
+  Staff member sees the work they personally recorded even on Tickets owned by someone else (BR-02).
+  Ordered newest `createdAt` first (ties broken by `id`), limited to 5.
 
 ## 6. UI Specification Summary
 
@@ -166,7 +172,7 @@ Full detail in `ui-spec.md`. Summary:
   IT Staff Dashboard, an unauthenticated visitor is redirected to Login. Replaces the Lab 1 "Check
   System" scaffold that has sat at this route, unguarded and unrelated to any real user, since Lab 1.
 - **IT Staff Dashboard**: metric tiles (New, Open, In Progress, Waiting for Requester, My Assigned),
-  a "Recent Tickets" list, and quick-action links into the Ticket Queue — reusing the existing
+  a "Recent Tickets" list, a "My Recent Actions Taken" list (FR-14), and quick-action links into the Ticket Queue — reusing the existing
   tinted-card and badge tokens already established on Ticket Detail.
 - **Requester Dashboard**: metric tiles (My Open, In Progress, Resolved, Closed), a "Tickets Waiting
   for You" attention-required callout (Waiting-for-Requester status specifically), a "Recent Tickets"
@@ -261,6 +267,9 @@ the existing per-route middleware-tuple authorization convention (`requireStaffA
 - AC-12 Given every Lab 1-3 acceptance criterion, when the complete Lab 4 regression suite runs
   against a fresh `prisma migrate deploy` + seed database, then all of them continue to pass
   unmodified.
+- AC-13 Given an IT Staff user who has recorded Actions Taken, when the Staff Dashboard loads, then
+  "My Recent Actions Taken" lists only Actions that user performed (none by other Staff), newest first,
+  at most 5, each linking to its Ticket; with none recorded, an explicit empty message is shown.
 
 Every acceptance criterion above is mapped to at least one planned test in `tests.md`.
 
@@ -268,8 +277,8 @@ Every acceptance criterion above is mapped to at least one planned test in `test
 
 **Part 1 — Product completion**
 
-- Every FR-01 to FR-13 is implemented; every AC-01 to AC-12 is satisfied and demonstrable.
-- Every BR-01 to BR-14 is enforced where this specification says it must be enforced, verified by a
+- Every FR-01 to FR-14 is implemented; every AC-01 to AC-13 is satisfied and demonstrable.
+- Every BR-01 to BR-15 is enforced where this specification says it must be enforced, verified by a
   direct API test, not only a hidden UI control.
 - The complete Lab 1-4 test suite passes from the documented commands on the final `main` branch.
 - No required test is skipped, disabled, or commented out.
@@ -305,3 +314,4 @@ Every acceptance criterion above is mapped to at least one planned test in `test
 | D-05 | The IT Staff Dashboard's metric tiles are New, Open, In Progress, Waiting for Requester, and My Assigned — matching the Figure (8.1) exactly — without a separate "Unassigned" tile. | "Unassigned" is already a first-class filter on the existing Ticket Queue (`ticketOwnerId=unassigned`, built in Lab 3); duplicating it as a dashboard tile adds a metric the Figure doesn't show without adding real new capability — the Dashboard's own "quick actions" link into the Queue, where that filter already lives. |
 | D-06 | Administrator reuses the IT Staff Dashboard verbatim — no separate Administrator dashboard route or screen. | Explicitly permitted ("Administrator dashboard: may reuse the IT Staff dashboard") and avoids a redundant third screen. |
 | D-07 | Actions Taken uses a single-message `VALIDATION_FAILED` error (matching Internal Notes' validation style), not Administrator's per-field `fields` map. | The Actions Taken form is closer in shape and complexity to the Internal Note form than to the multi-field User Management form; matching its nearest sibling keeps the client-side error-handling code symmetric with the existing Public Comments/Internal Notes panels it sits beside. |
+| D-08 | An Action Taken has no separate assignee or status of its own. The labsheet's Part 6 grading text ("assign", "complete", "cancel", "inactive-assignee rejection") is mapped onto existing mechanisms: **assignment** is the Ticket Owner (claim/reassign, Lab 3), whose server-side check rejects an inactive or non-staff owner with 400; **Performed by** is always the authenticated caller (BR-06); **complete/cancel** are the Ticket's own Resolved/Closed/Cancelled transitions under BR-21. *(Recorded in Issue #61 during report preparation; the implementation predates it.)* | The stakeholder request (§3) and §8.3 list the Action Taken fields exactly, and none is an assignee or status. Adding them would invent scope the contract excludes (§4.2: "new product features not approved"), and would create a second, competing notion of "who is responsible" beside the Ticket Owner, which BR-02 says coordinates the Ticket as a whole. |

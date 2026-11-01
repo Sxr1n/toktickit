@@ -91,3 +91,11 @@ a:hover {
   border-color: var(--color-secondary);
   box-shadow: 0 0 0 0.25rem rgba(11, 122, 70, 0.25);
 }
+
+/* Active page in the app shell: weight + underline, so the cue doesn't rely on colour alone. */
+nav .nav-link.active {
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 6px;
+  text-decoration-thickness: 2px;
+}
