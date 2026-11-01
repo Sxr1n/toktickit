@@ -1,7 +1,8 @@
 # Lab 4 - AI Use and Reflection
 
 I used **Claude Code**, running **Claude Sonnet 5**, as the AI coding agent for Lab 4, continuing
-from Labs 1-3. It planned the sprint in Plan Mode first (researching the exact current schema, routes,
+from Labs 1-3. The report-preparation pass at the end (Issue #61) ran on **Claude Opus 5.5** in the
+same Claude Code session, after switching models with `/model`. It planned the sprint in Plan Mode first (researching the exact current schema, routes,
 and client structure before proposing the `ActionTaken` model and dashboard design), then implemented
 every Issue in the same Issue → branch → PR → review → merge rhythm as the prior labs, driven mostly
 by a one-line "ทำต่อได้เลยครับ" (continue) after each merge.
