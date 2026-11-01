@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 const DEV_PASSWORD = 'DevPass123!'
 const FINAL_PASSWORD = 'E2eFinalPass9!'
 
-test.describe('E2E-02: full Ticket lifecycle walk (AC-07, FR-07, FR-08)', () => {
+test.describe('E2E-03: full Ticket lifecycle walk (AC-07, FR-07, FR-08)', () => {
   test('New -> Open -> In Progress -> Resolved -> Closed, each transition permitted and Requester-blocked', async ({
     page,
     request,

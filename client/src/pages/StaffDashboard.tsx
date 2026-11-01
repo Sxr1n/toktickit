@@ -13,9 +13,19 @@ interface RecentTicket {
   updatedAt: string
 }
 
+interface MyRecentAction {
+  id: number
+  ticketId: number
+  ticketNumber: string
+  description: string
+  followUpRequired: boolean
+  createdAt: string
+}
+
 interface StaffDashboardResponse {
   counts: { new: number; open: number; inProgress: number; waitingForRequester: number; myAssigned: number }
   recentTickets: RecentTicket[]
+  myRecentActions: MyRecentAction[]
 }
 
 type LoadState = 'loading' | 'loaded' | 'error'
@@ -109,6 +119,35 @@ export default function StaffDashboard() {
                 <span className="d-flex align-items-center gap-2">
                   <StatusBadge status={t.currentStatus} />
                   <span className="text-muted small">{new Date(t.updatedAt).toLocaleDateString('en-US')}</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <h2 className="h5 mb-2">My Recent Actions Taken</h2>
+
+      {data.myRecentActions.length === 0 && <p>You haven't recorded any Actions Taken yet.</p>}
+
+      {data.myRecentActions.length > 0 && (
+        <ul className="list-group mb-4">
+          {data.myRecentActions.map((a) => (
+            <li key={a.id} className="list-group-item p-0">
+              <Link
+                to={`/staff/tickets/${a.ticketId}`}
+                className="list-group-item-action d-flex justify-content-between align-items-center gap-2 p-2 text-decoration-none text-body"
+              >
+                <span className="text-break">
+                  <strong>{a.ticketNumber}</strong> — {a.description}
+                </span>
+                <span className="d-flex align-items-center gap-2 flex-shrink-0">
+                  {a.followUpRequired && (
+                    <span className="badge" style={{ backgroundColor: '#FBF2E0', color: '#9A6400' }}>
+                      Follow-Up Required
+                    </span>
+                  )}
+                  <span className="text-muted small">{new Date(a.createdAt).toLocaleDateString('en-US')}</span>
                 </span>
               </Link>
             </li>

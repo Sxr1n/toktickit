@@ -29,6 +29,16 @@ const DASHBOARD_DATA = {
       updatedAt: '2026-09-01T00:00:00.000Z',
     },
   ],
+  myRecentActions: [
+    {
+      id: 5,
+      ticketId: 3,
+      ticketNumber: 'TKT-2026-000300',
+      description: 'Replaced the docking station.',
+      followUpRequired: true,
+      createdAt: '2026-09-02T00:00:00.000Z',
+    },
+  ],
 }
 
 function renderDashboard(fetchImpl: (url: string) => Promise<Response> | Response) {
@@ -74,6 +84,18 @@ describe('StaffDashboard - metrics (UI-07, AC-09)', () => {
     const ticketLink = await screen.findByRole('link', { name: /TKT-2026-000234/ })
     expect(ticketLink).toHaveAttribute('href', '/staff/tickets/1')
   })
+
+  it("renders the caller's recent Actions Taken linking to their Ticket (UI-12, AC-13)", async () => {
+    renderDashboard((url) => {
+      if (url.endsWith('/api/auth/me')) return jsonResponse(CURRENT_USER)
+      if (url.endsWith('/api/dashboard/staff')) return jsonResponse(DASHBOARD_DATA)
+      throw new Error(`Unexpected fetch to ${url}`)
+    })
+
+    const actionLink = await screen.findByRole('link', { name: /Replaced the docking station/ })
+    expect(actionLink).toHaveAttribute('href', '/staff/tickets/3')
+    expect(screen.getByText('Follow-Up Required')).toBeInTheDocument()
+  })
 })
 
 describe('StaffDashboard - empty and failure states (UI-08)', () => {
@@ -81,11 +103,16 @@ describe('StaffDashboard - empty and failure states (UI-08)', () => {
     renderDashboard((url) => {
       if (url.endsWith('/api/auth/me')) return jsonResponse(CURRENT_USER)
       if (url.endsWith('/api/dashboard/staff'))
-        return jsonResponse({ counts: { new: 0, open: 0, inProgress: 0, waitingForRequester: 0, myAssigned: 0 }, recentTickets: [] })
+        return jsonResponse({
+          counts: { new: 0, open: 0, inProgress: 0, waitingForRequester: 0, myAssigned: 0 },
+          recentTickets: [],
+          myRecentActions: [],
+        })
       throw new Error(`Unexpected fetch to ${url}`)
     })
 
     expect(await screen.findByText('No tickets yet.')).toBeInTheDocument()
+    expect(screen.getByText("You haven't recorded any Actions Taken yet.")).toBeInTheDocument()
   })
 
   it('shows a safe failure message with Retry when the dashboard fails to load', async () => {

@@ -47,12 +47,18 @@ status (My Assigned links to the Queue filtered to `ticketOwnerId=<self>`).
 Number, Summary, Status badge, updated date — each row linking to its Ticket Detail. "View all" links
 to the full Ticket Queue.
 
-**Quick Actions**: plain `btn btn-primary`/`btn-outline-dark` links to Create Ticket and the Ticket
-Queue, matching the labsheet Figure.
+**My Recent Actions Taken** (FR-14): a `list-group` of the caller's own 5 most recent Actions Taken —
+Ticket Number, Action Description, a "Follow-Up Required" badge (same amber token as Ticket Detail)
+when set, created date — each row linking to its Ticket Detail. Empty: "You haven't recorded any
+Actions Taken yet."
 
-States: loading (skeleton tiles, same pattern as the Ticket Queue's own loading state), loaded, empty
-(a tile legitimately at 0 renders "0" plus its label, never blank — only the Recent Tickets list gets a
-dedicated "No tickets yet." empty-state message), forbidden (non-staff direct-navigating here never
+**Quick Actions**: a single `btn btn-primary` "Search Tickets" link to the Ticket Queue. The Figure
+also shows "Create Ticket", but Create Ticket is a Requester-only route (Lab 2/3 RBAC), so it is
+deliberately omitted for IT Staff rather than shown as a link that would be forbidden.
+
+States: loading (a "Loading..." line, the same pattern every other screen in this app uses), loaded,
+empty (a tile legitimately at 0 renders "0" plus its label, never blank — the Recent Tickets and My
+Recent Actions Taken lists each get a dedicated empty-state message), forbidden (non-staff direct-navigating here never
 happens, since `/` is role-routed, not role-gated-and-blocked — a Requester simply sees their own
 Dashboard instead), failure (safe message + Retry, same pattern as the Ticket Queue).
 
