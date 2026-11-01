@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 const DEV_PASSWORD = 'DevPass123!'
 const FINAL_PASSWORD = 'E2eFinalPass9!'
 
-test.describe('E2E-01: Actions Taken full flow (AC-01, AC-02, AC-05, AC-06)', () => {
+test.describe('E2E-01, E2E-02: Actions Taken full flow (AC-01, AC-02, AC-05, AC-06)', () => {
   test('Staff creates, edits an Action Taken with Follow-Up Required, and the Requester sees it read-only', async ({
     page,
     request,
@@ -60,6 +60,13 @@ test.describe('E2E-01: Actions Taken full flow (AC-01, AC-02, AC-05, AC-06)', ()
     await page.getByLabel('Description').fill('Investigated the reported issue.')
     await page.getByLabel('Result').fill('Root cause identified; fix pending vendor confirmation.')
     await page.getByRole('checkbox', { name: 'Follow-Up Required' }).check()
+
+    // E2E-02 (AC-02): the server rejects a missing Follow-up Note; the form shows a safe error and keeps the entered data.
+    await page.getByRole('button', { name: 'Add Action Taken' }).click()
+    await expect(page.getByText('Unable to save the Action Taken. Please check the fields and try again.')).toBeVisible()
+    await expect(page.getByLabel('Description')).toHaveValue('Investigated the reported issue.')
+    await expect(page.getByText('No actions taken yet.')).toBeVisible()
+
     await page.getByLabel(/Follow-up Note/).fill('Check back with vendor in 2 business days.')
     await page.getByRole('button', { name: 'Add Action Taken' }).click()
     const actionItem = page.getByText('Investigated the reported issue.').locator('xpath=ancestor::li')

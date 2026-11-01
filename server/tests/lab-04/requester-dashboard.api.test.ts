@@ -55,7 +55,7 @@ beforeAll(async () => {
   ])
 })
 
-describe('GET /api/dashboard/requester - role gate', () => {
+describe('GET /api/dashboard/requester - role gate (API-30)', () => {
   it('rejects IT Staff with 403', async () => {
     const res = await request(app).get('/api/dashboard/requester').set('Cookie', staffCookie)
     expect(res.status).toBe(403)

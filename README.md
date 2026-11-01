@@ -109,6 +109,7 @@ main                  <- stable release (protected)
    feature/53-actions-taken-ui
    feature/55-role-dashboards
    feature/58-final-hardening
+   feature/61-rubric-gaps           <- found while preparing the Lab 4 report, released via a second lab4-staging -> main PR
 ```
 
 Never commit directly to `main` or a `*-staging` branch. Each Issue is built on its own `feature/*`

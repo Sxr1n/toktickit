@@ -41,7 +41,7 @@ function serializeRecent(t: {
 // BR-11/BR-13: every count is calculated system-wide (not owner-scoped) from the live Ticket table
 // at request time -- same unscoped visibility the Ticket Queue already has.
 router.get('/dashboard/staff', ...requireStaffAuth, async (req, res) => {
-  const [newCount, open, inProgress, waitingForRequester, myAssigned, recent] = await Promise.all([
+  const [newCount, open, inProgress, waitingForRequester, myAssigned, recent, myActions] = await Promise.all([
     prisma.ticket.count({ where: { currentStatus: 'NEW' } }),
     prisma.ticket.count({ where: { currentStatus: 'OPEN' } }),
     prisma.ticket.count({ where: { currentStatus: 'IN_PROGRESS' } }),
@@ -52,11 +52,32 @@ router.get('/dashboard/staff', ...requireStaffAuth, async (req, res) => {
       take: 10,
       select: RECENT_SELECT,
     }),
+    // BR-15: scoped to Actions the caller performed, regardless of who owns the Ticket (BR-02).
+    prisma.actionTaken.findMany({
+      where: { performedById: req.user!.id },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: 5,
+      select: {
+        id: true,
+        description: true,
+        followUpRequired: true,
+        createdAt: true,
+        ticket: { select: { id: true, ticketNumber: true } },
+      },
+    }),
   ])
 
   res.json({
     counts: { new: newCount, open, inProgress, waitingForRequester, myAssigned },
     recentTickets: recent.map(serializeRecent),
+    myRecentActions: myActions.map((a) => ({
+      id: a.id,
+      ticketId: a.ticket.id,
+      ticketNumber: a.ticket.ticketNumber,
+      description: a.description,
+      followUpRequired: a.followUpRequired,
+      createdAt: a.createdAt,
+    })),
   })
 })
 

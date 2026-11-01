@@ -8,7 +8,7 @@ function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status })
 }
 
-function renderShellAs(user: unknown) {
+function renderShellAs(user: unknown, path = '/') {
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string) => {
@@ -20,7 +20,7 @@ function renderShellAs(user: unknown) {
   )
 
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[path]}>
       <AuthProvider>
         <AppShell>
           <div>page content</div>
@@ -32,6 +32,23 @@ function renderShellAs(user: unknown) {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+})
+
+describe('AppShell - active-page indication (Lab 4 UI-13)', () => {
+  const staff = { id: 2, name: 'Carlos Mendez', email: 'carlos.mendez@example.com', role: 'IT_STAFF', mustChangePassword: false }
+
+  it('marks only Dashboard as the current page at /', async () => {
+    renderShellAs(staff, '/')
+    const dashboard = await screen.findByRole('link', { name: 'Dashboard' })
+    expect(dashboard).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'My Queue' })).not.toHaveAttribute('aria-current')
+  })
+
+  it('keeps My Queue current on a Ticket Detail under /staff/tickets, and Dashboard not', async () => {
+    renderShellAs(staff, '/staff/tickets/42')
+    expect(await screen.findByRole('link', { name: 'My Queue' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Dashboard' })).not.toHaveAttribute('aria-current')
+  })
 })
 
 describe('AppShell - role-conditional navigation (UI-03, FR-06)', () => {

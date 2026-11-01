@@ -20,6 +20,7 @@ Same levels as Lab 3, plus a dedicated workflow/concurrency category for the sta
 | Authorization / security | Supertest, direct API calls bypassing the UI | Requester blocked from every Actions Taken write route; dashboard scoping |
 | Workflow / concurrency | Supertest | Stale-`updatedAt` edit rejected with 409; status matrix still authoritative with Actions Taken present |
 | Migration / regression | Supertest against a rebuilt database | Lab 1-3 suites still pass unmodified after the additive migration |
+| Performance smoke | Supertest | Dashboard endpoints respond within a fixed ceiling against the full dev dataset |
 | End-to-end | Playwright | Real login → Actions Taken flow, ticket resolution flow, dashboard flow |
 
 ## 2. Planned Tests
@@ -66,6 +67,8 @@ Note validator, tested directly against representative input combinations.
 | API-23 | — | `recentTickets` ordering | 10 most recently updated, newest first | Pass |
 | API-24 | AC-21-style | Requester calls `/api/dashboard/staff` | 403 | Pass |
 | API-25 | — | Unauthenticated caller | 401 | Pass |
+| API-32 | AC-13, BR-15 | `myRecentActions` (Issue #61) | Only the caller's own Actions, newest first, at most 5; `[]` when none | Pass |
+| PERF-01 | — | Performance smoke: `/api/dashboard/staff` and `/api/dashboard/requester` against the ~2,600-Ticket dev DB | Each 200 within 1000 ms | Pass |
 
 ### 2.4 Requester Dashboard — `server/tests/lab-04/requester-dashboard.api.test.ts`
 
@@ -77,7 +80,7 @@ Note validator, tested directly against representative input combinations.
 | API-29 | AC-10 | Caller with zero Tickets | All counts `0`, both lists `[]` | Pass |
 | API-30 | — | IT Staff calls `/api/dashboard/requester` | 403 | Pass |
 
-### 2.5 UI component — `client/tests/lab-04/{ActionsTaken,TicketWorkflow,StaffDashboard,RequesterDashboard}.test.tsx`
+### 2.5 UI component — `client/tests/lab-04/{ActionsTaken,TicketWorkflow,StaffDashboard,RequesterDashboard,Home}.test.tsx`
 
 | Test ID | AC / Requirement | What It Tests | Expected Result | Status |
 |---|---|---|---|---|
@@ -86,35 +89,58 @@ Note validator, tested directly against representative input combinations.
 | UI-03 | AC-01 | Edit mode pre-fills existing values and Save persists them | List item reflects the edit after save | Pass |
 | UI-04 | AC-06 | A 409 conflict response shows the safe inline message and reloads that item | Error text shown, item re-fetched, no silent data loss | Pass |
 | UI-05 | FR-05 | `RequesterTicketDetail`'s Actions Taken section renders read-only, no Edit button, no form | No interactive controls present | Pass |
-| UI-06 | FR-07 | `TicketWorkflow.test.tsx`: Status select only ever offers BR-21-permitted next values | Matches the client-side `TRANSITIONS` mirror | Pass |
+| UI-06 | FR-07, FR-08, AC-07 | `TicketWorkflow.test.tsx`: Status select only ever offers BR-21-permitted next values (NEW, IN_PROGRESS, RESOLVED, CLOSED, CANCELLED checked), a permitted change PATCHes and refreshes the summary status, and the Requester detail has no status control | Exact option sets match BR-21; no Requester control | Pass (file created in Issue #61 — see §6) |
 | UI-07 | AC-09 | `StaffDashboard.test.tsx`: metric tiles render counts from the API response and link to the correct filtered Queue URL | Tile text and `href`/`to` match | Pass |
 | UI-08 | AC-10 | Staff Dashboard empty/failure states | Explicit empty message; safe failure + Retry | Pass |
 | UI-09 | AC-08 | `RequesterDashboard.test.tsx`: tiles and Recent Tickets scoped to the mocked caller's own data | No foreign-Ticket data rendered | Pass |
 | UI-10 | — | "Tickets Waiting for You" panel absent when the list is empty | Panel not in the DOM, not just visually hidden | Pass |
-| UI-11 | AC-11 | `Home.tsx` routes by role | Requester→RequesterDashboard, Staff/Admin→StaffDashboard, no session→redirect to Login | Pass |
+| UI-11 | AC-11 | `Home.test.tsx`: `Home.tsx` routes by role | Requester→RequesterDashboard, Staff/Admin→StaffDashboard, no session→Login, temporary password→Change Password | Pass (file created in Issue #61 — see §6) |
+| UI-12 | AC-13 | `StaffDashboard.test.tsx`: My Recent Actions Taken list links each Action to its Ticket and shows the Follow-Up badge; empty message when none | Correct `href`, badge, empty text | Pass |
+| UI-13 | ui-spec §2 (labsheet §7 active-page indication) | `client/tests/lab-03/AppShell.test.tsx`: the current page's nav item has `aria-current="page"` (styled bold + underlined); Dashboard only at `/`, My Queue stays current on Ticket Detail | Exactly one nav item current | Pass |
 
 ### 2.6 Regression — reuses Lab 1-3's existing suites unmodified
 
 | Test ID | Requirement | What It Tests | Expected Result | Status |
 |---|---|---|---|---|
-| API-31 | AC-12, BR-35-equivalent | Full Lab 1+2+3+4 flow end-to-end through the live API after the additive migration | Ticket→Attachment→Comment→Note→Action Taken chain all succeed in one sequence | Pass |
+| API-31 | AC-12 | Full Lab 1+2+3+4 flow end-to-end through the live API after the additive migration | Ticket→Attachment→Comment→Note→Action Taken→Requester read→Requester Dashboard all succeed in one sequence | Pass (file created in Issue #61 — see §6) |
 
 `server/tests/lab-04/migration.api.test.ts` — smoke test mirroring Lab 3's own `migration.api.test.ts`
 pattern, proving the Lab 4 migration doesn't break the full FK chain spanning every prior lab's
 schema.
+
+### 2.7 Acceptance-Criterion traceability
+
+Generated from the AC column of every row in this document (and re-checked against the Test ID each
+test file actually carries):
+
+| AC | Tests | Automated test files |
+|---|---|---|
+| AC-01 | API-01, API-07, UI-03, E2E-01 | `actions-taken.api.test.ts`, `ActionsTaken.test.tsx`, `actions-taken-flow.spec.ts` |
+| AC-02 | API-02, E2E-02 | `actions-taken.api.test.ts`, `actions-taken-flow.spec.ts` |
+| AC-03 | API-03 | `actions-taken.api.test.ts` |
+| AC-04 | API-10 | `actions-taken.api.test.ts` |
+| AC-05 | API-11, E2E-01 | `actions-taken.api.test.ts`, `actions-taken-flow.spec.ts` |
+| AC-06 | API-08, UI-04 | `actions-taken.api.test.ts`, `ActionsTaken.test.tsx` |
+| AC-07 | API-15, UI-06 | `ticket-workflow.api.test.ts`, `TicketWorkflow.test.tsx` |
+| AC-08 | API-26, UI-09 | `requester-dashboard.api.test.ts`, `RequesterDashboard.test.tsx` |
+| AC-09 | API-19, UI-07 | `staff-dashboard.api.test.ts`, `StaffDashboard.test.tsx` |
+| AC-10 | API-22, API-29, UI-08 | `staff-dashboard.api.test.ts`, `requester-dashboard.api.test.ts`, `StaffDashboard.test.tsx` |
+| AC-11 | UI-11, E2E-04 | `Home.test.tsx`, `dashboards.spec.ts` |
+| AC-12 | API-31 (+ the full unmodified Lab 1-3 suites) | `server/tests/lab-04/migration.api.test.ts` |
+| AC-13 | API-32, UI-12 | `staff-dashboard.api.test.ts`, `StaffDashboard.test.tsx` |
 
 ## 3. End-to-end — `e2e/lab-04/{actions-taken-flow,ticket-resolution,dashboards}.spec.ts`
 
 | Test ID | AC / Requirement | What It Tests | Expected Result | Status |
 |---|---|---|---|---|
 | E2E-01 | AC-01, AC-05 | `actions-taken-flow.spec.ts`: Staff creates and edits an Action Taken; Requester sees it read-only on their own Ticket Detail | Full round trip through real browser + API + DB | Pass |
-| E2E-02 | AC-02 | Follow-up Note validation enforced through the real form | Submit blocked / safe error shown until a note is supplied | Pass |
-| E2E-03 | FR-07 | `ticket-resolution.spec.ts`: a full Ticket lifecycle walk (New→Open→In Progress→Resolved→Closed) with Actions Taken recorded along the way | Each transition succeeds only via a permitted path | Pass |
+| E2E-02 | AC-02 | `actions-taken-flow.spec.ts`: Follow-up Note validation enforced through the real form | Safe error shown, entered Description kept, nothing saved until a note is supplied | Pass (step added in Issue #61 — see §6) |
+| E2E-03 | FR-07, FR-08 | `ticket-resolution.spec.ts`: a full Ticket lifecycle walk (New→Open→In Progress→Resolved→Closed) as IT Staff; the Requester sees no status control | Each permitted transition succeeds and the summary status refreshes | Pass |
 | E2E-04 | AC-11 | `dashboards.spec.ts`: logging in as each role lands on that role's Dashboard at `/`, with drill-down links working | Correct Dashboard per role; clicking a tile/list item opens the right filtered/detail screen | Pass |
 
 ## 4. Responsive and Visual
 
-Playwright screenshots at 1440×900, 820×1024, 390×844 for Staff Dashboard, Requester Dashboard, and
+Playwright screenshots at 1280×800, 834×1194, 390×844 (the `desktop`/`tablet`/`mobile` projects in `playwright.config.ts`) for Staff Dashboard, Requester Dashboard, and
 Actions Taken (on both Ticket Detail pages), asserting no horizontal overflow (`document.documentElement.scrollWidth <= clientWidth`) the same way Lab 3's `visual-checklist.spec.ts` does, plus the same
 manual-screenshot-inspection discipline that caught Lab 3's real overflow bugs — an automated overflow
 assertion alone is necessary but not sufficient.
@@ -177,7 +203,25 @@ set). Two of the new E2E tests initially failed on first run — both the test's
 ambiguity (matching two elements with the same text, or asserting before a page transition settled), not
 application bugs; fixed and re-confirmed passing.
 
-**Final regression on `lab4-staging`, run fresh for this pass**: server 222/222, client 58/58, E2E
+**Issue #61 (Rubric gaps found during report preparation)**: Checking this document against the actual
+repository while preparing the Lab 4 submission found that the Issue #58 bulk update (every `Planned`
+row flipped to `Pass` in one edit) had marked four rows `Pass` that had **no test behind them**:
+UI-06 (`TicketWorkflow.test.tsx` — a file the labsheet's §12 lists as required — did not exist),
+UI-11 (no `Home.tsx` routing test; only E2E covered it), API-31 (`server/tests/lab-04/migration.api.test.ts`
+did not exist — a basename match against Lab 3's file of the same name hid this), and E2E-02 (no E2E
+step ever submitted the form without a Follow-up Note). The E2E-03 row also described Actions Taken
+being recorded during the lifecycle walk, which the test does not do, and the two E2E files were tagged
+with each other's IDs. All four are now real tests and the rows/tags are corrected. The same check
+against the labsheet rubric found Part 5's "current-user Actions Taken" uncovered (added FR-14, BR-15,
+AC-13, API-32, UI-12 — the Staff Dashboard's "My Recent Actions Taken"), no performance-smoke test
+(added PERF-01), two `ui-spec.md` statements that no longer matched the UI (a "Create Ticket" quick action removed in
+#55, and "skeleton tiles" that were never built) — both corrected — and no active-page indication in
+the nav (labsheet §7), now added with UI-13. The ui-spec checklist was also only a list of criteria;
+it is now completed with a result and evidence per item. Lesson: a bulk
+status flip is a claim, not evidence; every `Pass` here was re-checked by mapping each Test ID to a test
+that actually carries it. Server 225/225, client 73/73, E2E 20/20.
+
+**Final regression on `lab4-staging` at Issue #58 (before #61)**: server 222/222, client 58/58, E2E
 20/20 (Labs 1-4 together, across desktop/tablet/mobile where applicable).
 
 ### Reviewer feedback audit (Issue #58)
@@ -206,8 +250,8 @@ merged:
 
 - (Carried over from Lab 3, still true) Session-expiry is tested by issuing a token with a manually-set
   past expiry rather than waiting out a real 8-hour window.
-- Load/performance testing of the Dashboard queries at large Ticket counts is out of scope for this
-  course lab (the labsheet's own exclusion list covers this implicitly via "production-scale cloud
-  operations").
+- Only a single-request performance smoke (PERF-01) is automated; real load testing of the Dashboard
+  queries is out of scope for this course lab (the labsheet's exclusion list covers "production-scale
+  cloud operations").
 - Actions Taken has no delete capability by design (not requested anywhere in the Lab 4 contract) — no
   test plans for one.

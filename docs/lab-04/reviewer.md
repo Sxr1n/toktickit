@@ -64,6 +64,28 @@ directly into `lab4-staging`; this PR landed the full stack in one step with no 
   still asserted the old Lab 1 "TokTickIT IT Service Desk" heading at `/`, which Issue #55 had already
   replaced with the role-routed Dashboard. Fixed in Issue #58.
 
+### [PR #59](https://github.com/Sxr1n/toktickit/pull/59) - Final hardening and release integration (Issue #58)
+
+- Reviewer: **FramePongrit** — first review *Commented* (2026-10-30): praised the explicit error/Retry
+  handling and the regression fixes, with one concrete concern: `actions-taken-flow.spec.ts` and
+  `ticket-resolution.spec.ts` still used an unscoped `getByRole('link', { name: 'Create Ticket' })`,
+  the same ambiguity this PR had just fixed in the Lab 2 test.
+- Response: fixed in commit `06eb313` (both locators scoped to the navigation), full E2E re-run 20/20.
+- FramePongrit then **Approved** (same day), confirming both files now use the nav-scoped locator. This
+  is the first review this sprint where the fix landed *before* merge rather than being deferred.
+
+### [PR #60](https://github.com/Sxr1n/toktickit/pull/60) - Release: Lab 4 (`lab4-staging` → `main`)
+
+- Reviewer: **FramePongrit** — **Approved** (2026-10-31): highlighted the separation of Actions Taken from
+  Public Comments/Internal Notes, the optimistic-concurrency handling, the role dashboards, and the
+  test traceability. No follow-ups. Response: thanked the reviewer on the PR.
+
+### [PR #62](https://github.com/Sxr1n/toktickit/pull/62) - Rubric gaps found during report preparation (Issue #61)
+
+Opened after the release: a check of `tests.md` against the real repository found four rows marked
+Pass with no test behind them, plus one uncovered rubric item (current-user Actions Taken on the Staff
+Dashboard). Merged into `lab4-staging`, then released to `main` through a second release PR.
+
 ## Pattern across this sprint
 
 Every substantive review this sprint was genuinely engaged with at reply time ("ok boss I will fix
