@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function AppShell({ children }: { children: ReactNode }) {
@@ -16,28 +16,28 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   const navLinks = user ? (
     <>
-      <Link className="nav-link text-white" to="/" onClick={() => setMenuOpen(false)}>
+      <NavLink end className="nav-link text-white" to="/" onClick={() => setMenuOpen(false)}>
         Dashboard
-      </Link>
+      </NavLink>
       {user.role === 'REQUESTER' && (
         <>
-          <Link className="nav-link text-white" to="/tickets" onClick={() => setMenuOpen(false)}>
+          <NavLink className="nav-link text-white" to="/tickets" onClick={() => setMenuOpen(false)}>
             My Tickets
-          </Link>
-          <Link className="nav-link text-white" to="/create-ticket" onClick={() => setMenuOpen(false)}>
+          </NavLink>
+          <NavLink className="nav-link text-white" to="/create-ticket" onClick={() => setMenuOpen(false)}>
             Create Ticket
-          </Link>
+          </NavLink>
         </>
       )}
       {(user.role === 'IT_STAFF' || user.role === 'ADMINISTRATOR') && (
-        <Link className="nav-link text-white" to="/staff/tickets" onClick={() => setMenuOpen(false)}>
+        <NavLink className="nav-link text-white" to="/staff/tickets" onClick={() => setMenuOpen(false)}>
           My Queue
-        </Link>
+        </NavLink>
       )}
       {user.role === 'ADMINISTRATOR' && (
-        <Link className="nav-link text-white" to="/admin/users" onClick={() => setMenuOpen(false)}>
+        <NavLink className="nav-link text-white" to="/admin/users" onClick={() => setMenuOpen(false)}>
           Users
-        </Link>
+        </NavLink>
       )}
       <span className="text-white">
         {user.name} ({user.role})

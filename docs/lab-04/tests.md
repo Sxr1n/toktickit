@@ -96,6 +96,7 @@ Note validator, tested directly against representative input combinations.
 | UI-10 | — | "Tickets Waiting for You" panel absent when the list is empty | Panel not in the DOM, not just visually hidden | Pass |
 | UI-11 | AC-11 | `Home.test.tsx`: `Home.tsx` routes by role | Requester→RequesterDashboard, Staff/Admin→StaffDashboard, no session→Login, temporary password→Change Password | Pass (file created in Issue #61 — see §6) |
 | UI-12 | AC-13 | `StaffDashboard.test.tsx`: My Recent Actions Taken list links each Action to its Ticket and shows the Follow-Up badge; empty message when none | Correct `href`, badge, empty text | Pass |
+| UI-13 | ui-spec §2 (labsheet §7 active-page indication) | `client/tests/lab-03/AppShell.test.tsx`: the current page's nav item has `aria-current="page"` (styled bold + underlined); Dashboard only at `/`, My Queue stays current on Ticket Detail | Exactly one nav item current | Pass |
 
 ### 2.6 Regression — reuses Lab 1-3's existing suites unmodified
 
@@ -139,7 +140,7 @@ test file actually carries):
 
 ## 4. Responsive and Visual
 
-Playwright screenshots at 1440×900, 820×1024, 390×844 for Staff Dashboard, Requester Dashboard, and
+Playwright screenshots at 1280×800, 834×1194, 390×844 (the `desktop`/`tablet`/`mobile` projects in `playwright.config.ts`) for Staff Dashboard, Requester Dashboard, and
 Actions Taken (on both Ticket Detail pages), asserting no horizontal overflow (`document.documentElement.scrollWidth <= clientWidth`) the same way Lab 3's `visual-checklist.spec.ts` does, plus the same
 manual-screenshot-inspection discipline that caught Lab 3's real overflow bugs — an automated overflow
 assertion alone is necessary but not sufficient.
@@ -213,10 +214,12 @@ being recorded during the lifecycle walk, which the test does not do, and the tw
 with each other's IDs. All four are now real tests and the rows/tags are corrected. The same check
 against the labsheet rubric found Part 5's "current-user Actions Taken" uncovered (added FR-14, BR-15,
 AC-13, API-32, UI-12 — the Staff Dashboard's "My Recent Actions Taken"), no performance-smoke test
-(added PERF-01), and two `ui-spec.md` statements that no longer matched the UI (a "Create Ticket" quick
-action removed in #55, and "skeleton tiles" that were never built) — both corrected. Lesson: a bulk
+(added PERF-01), two `ui-spec.md` statements that no longer matched the UI (a "Create Ticket" quick action removed in
+#55, and "skeleton tiles" that were never built) — both corrected — and no active-page indication in
+the nav (labsheet §7), now added with UI-13. The ui-spec checklist was also only a list of criteria;
+it is now completed with a result and evidence per item. Lesson: a bulk
 status flip is a claim, not evidence; every `Pass` here was re-checked by mapping each Test ID to a test
-that actually carries it. Server 225/225, client 71/71, E2E 20/20.
+that actually carries it. Server 225/225, client 73/73, E2E 20/20.
 
 **Final regression on `lab4-staging` at Issue #58 (before #61)**: server 222/222, client 58/58, E2E
 20/20 (Labs 1-4 together, across desktop/tablet/mobile where applicable).
